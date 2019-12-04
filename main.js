@@ -1,96 +1,143 @@
-const fs = require('fs')
-const filePath = "test.zed"
+function Reader(file) {
+    let fileSize = file.length
+    let run = true
+    let position = 0
 
-const file = fs.readFileSync(filePath)
-const fileSize = file.length
+    /* basic positional stuff */
 
-let run = true
-let position = 0
+    function next() {
+        const char = String.fromCharCode( file[position] )
+        position += 1
+        return char
+    }
+    
+    function peak() {
+        return String.fromCharCode( file[position] )
+    }
+    
+    function skip() {
+        position += 1
+    }
 
-function next() {
-    const char = String.fromCharCode( file[position] )
-    position += 1
-    return char
-}
+    function skipPadding(skippable=[" ", "\n"]) {
+        while ( skippable.indexOf(peak()) !== -1 ) { skip() }
+    }    
 
-function peak() {
-    return String.fromCharCode( file[position] )
-}
+    /* scoping and main function */
 
-function skip() {
-    position += 1
-}
+    class Scope {
+        constructor(parent) {
+            this.parent = parent
+            this.data = new Map()
+        }
 
-const functions = {
-    "+": (a, b) => a + b,
-    "-": (a, b) => a - b,
-    "*": (a, b) => a * b,
-    "/": (a, b) => a / b
-}
-
-function skipPadding(skippable=[" ", "\n"]) {
-    while ( skippable.indexOf(peak()) !== -1 ) { skip() }
-}
-
-function getNextWord(end=[")", " ", "\n"], eat=false) {
-    let word = ""
-
-    while (run) {
-        if (end.indexOf(peak()) !== -1) {
-            if (eat) {
-                skip()
+        /* variable */
+    
+        set(key, value) {
+            this.data.set(key, value)
+        }
+    
+        get(key) {
+            if (this.data.has(key)) {
+                return this.data.get(key)
             }
-            break
+            
+            console.log("key: ", key)
+
+            // return this.parent.get(key)
+        }
+    
+        /* eaters */
+
+        eatNextWord(end=[")", " ", "\n"], eat=false) {
+            let word = ""
+        
+            while (run) {
+                if (end.indexOf(peak()) !== -1) {
+                    if (eat) {
+                        skip()
+                    }
+                    break
+                }
+        
+                word += next()
+            }
+        
+            return word
         }
 
-        word += next()
-    }
-
-    return word
-}
-
-function proc() {
-    let char = peak()
-
-    if (char == "\"") {
-        skip()
-        return getNextWord(["\""], true)
-    } else if (char == "(") {
-        return func()
-    } else {
-        return parseInt( getNextWord() )
-    }
-}
-
-function func() {
-    skip()
-
-    let func = getNextWord()
-
-    let paramaters = []
-
-    while (run) {
-        if (peak() === ")") {
+        eatFunction() {
+            // skip the opening '(' 
             skip()
-            break
+
+            let func = this.eat()
+            let paramaters = []
+
+            while (run) {
+                skipPadding()
+                if (peak() === ")") {
+                    skip()
+                    break
+                }
+                paramaters.push( this.eat() )
+            }
+
+            return func(...paramaters)
         }
-        skipPadding()
-        let paramater = proc()
-        paramaters.push( paramater )
+
+        eatString() {
+            return this.NextWord(["\""], true)
+        }
+
+        eatNumber() {
+            return parseInt( this.eatNextWord() )
+        }
+
+        eatVariable() {
+            console.log("eat var: ", peak())
+            return this.get( this.eatNextWord() )
+        }
+
+        eat() {
+            let char = peak()
+
+            if (char == "(") {
+                return this.eatFunction()
+            }
+
+            if (char == "\"") {
+                return this.eatString()
+            }
+
+            if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].indexOf(char) != -1) {
+                return this.eatNumber()
+            }
+
+            return this.eatVariable()
+        }
     }
 
-    return functions[func](...paramaters)
-}
+    return function() {
+        let rootScope = new Scope()
 
-while (position < fileSize) {
-    let char = peak()
+        rootScope.set("+", (a, b) => a + b)
+        rootScope.set("-", (a, b) => a - b)
+        rootScope.set("*", (a, b) => a * b)
+        rootScope.set("/", (a, b) => a / b)
 
-    if (char == " " || char == "\n") {
-        skip()
-    } else if (char == "(") {
-        console.log( func() )
-    } else {
-        console.error(`Invalide token '${char}' at ${position}`)
-        break
+        while (position < fileSize) {
+            skipPadding()
+
+            console.log( rootScope.eat() )
+        }
     }
 }
+
+// Do it
+
+const fs = require('fs')
+
+const filePath = "test.zed"
+const file = fs.readFileSync(filePath)
+
+Reader(file)()
