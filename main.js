@@ -1,17 +1,48 @@
-function Reader(file) {
+const EOF = "end_of_file"
+
+function Lexer(file) {
     let fileSize = file.length
     let run = true
     let position = 0
 
-    /* basic positional stuff */
+    let punctuation = new Map()
+
+    /* skippable punctuation*/
+    punctuation.set(" " , () => skip())
+    punctuation.set("\n", () => skip())
+    
+    punctuation.set("(", () => {
+        skip()
+
+        let fn = getVariable()
+
+        return {
+            type: "call",
+
+        }
+    })
+    
+    punctuation.set(")", () => skip())
+
+    punctuation.set(EOF, () => {  })
+
+    let keywords = new Map()
+    keywords.set("fn", () => {})
+
+    /* reader function */
 
     function next() {
-        const char = String.fromCharCode( file[position] )
-        position += 1
+        let char = peak()
+        skip()
         return char
     }
     
     function peak() {
+        if (position >= fileSize) {
+            console.log("reacher EOF")
+            return EOF
+        }
+        // console.log("next: ", position)
         return String.fromCharCode( file[position] )
     }
     
@@ -19,118 +50,50 @@ function Reader(file) {
         position += 1
     }
 
-    function skipPadding(skippable=[" ", "\n"]) {
-        while ( skippable.indexOf(peak()) !== -1 ) { skip() }
-    }    
+    function word() {
+        let word = ""
 
-    /* scoping and main function */
-
-    class Scope {
-        constructor(parent) {
-            this.parent = parent
-            this.data = new Map()
+        while ( !punctuation.has(peak()) ) {
+            word += next()
         }
 
-        /* variable */
-    
-        set(key, value) {
-            this.data.set(key, value)
-        }
-    
-        get(key) {
-            if (this.data.has(key)) {
-                return this.data.get(key)
-            }
-            
-            console.log("key: ", key)
-
-            // return this.parent.get(key)
-        }
-    
-        /* eaters */
-
-        eatNextWord(end=[")", " ", "\n"], eat=false) {
-            let word = ""
-        
-            while (run) {
-                if (end.indexOf(peak()) !== -1) {
-                    if (eat) {
-                        skip()
-                    }
-                    break
-                }
-        
-                word += next()
-            }
-        
-            return word
-        }
-
-        eatFunction() {
-            // skip the opening '(' 
-            skip()
-
-            let func = this.eat()
-            let paramaters = []
-
-            while (run) {
-                skipPadding()
-                if (peak() === ")") {
-                    skip()
-                    break
-                }
-                paramaters.push( this.eat() )
-            }
-
-            return func(...paramaters)
-        }
-
-        eatString() {
-            return this.NextWord(["\""], true)
-        }
-
-        eatNumber() {
-            return parseInt( this.eatNextWord() )
-        }
-
-        eatVariable() {
-            console.log("eat var: ", peak())
-            return this.get( this.eatNextWord() )
-        }
-
-        eat() {
-            let char = peak()
-
-            if (char == "(") {
-                return this.eatFunction()
-            }
-
-            if (char == "\"") {
-                return this.eatString()
-            }
-
-            if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].indexOf(char) != -1) {
-                return this.eatNumber()
-            }
-
-            return this.eatVariable()
-        }
+        return word
     }
 
-    return function() {
-        let rootScope = new Scope()
+    /* eaters */
 
-        rootScope.set("+", (a, b) => a + b)
-        rootScope.set("-", (a, b) => a - b)
-        rootScope.set("*", (a, b) => a * b)
-        rootScope.set("/", (a, b) => a / b)
+    function getVariable() {
+
+    }
+
+    /* */
+
+    function tokenize() {
+        let tokens = []
 
         while (position < fileSize) {
-            skipPadding()
+            let char = peak()
 
-            console.log( rootScope.eat() )
+            if (punctuation.has(char) ) {
+                let token = punctuation.get(char)()
+                if (token) {
+                    tokens.push( punctuation.get(char)( char ) )
+                }
+            } else {
+                let w = word()
+
+                if ( keywords.has(w) ) {
+                    console.log("key: ", w)
+                } else {
+                    console.log("var: ", w)
+                }
+            }
         }
+
+        return tokens
     }
+
+    return tokenize
 }
 
 // Do it
@@ -140,4 +103,8 @@ const fs = require('fs')
 const filePath = "test.zed"
 const file = fs.readFileSync(filePath)
 
-Reader(file)()
+let tokens = Lexer(file)()
+
+for (let token of Lexer(file)()) {
+    console.log(token.type)
+}
