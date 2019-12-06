@@ -78,14 +78,18 @@ function Lexer(file) {
             block: eatToken()
         }
     })
-    keywords.set("let", () => {
-        return {
-            type: "decleration",
-            name: eatToken(),
-            value: eatToken(),
-            block: eatToken()
-        }
-    })
+    keywords.set("let", () => ({
+        type: "decleration",
+        name: eatToken(),
+        value: eatToken(),
+        block: eatToken()
+    }) )
+    keywords.set("if", () => ({
+        type: "if",
+        condition: eatToken(),
+        then: eatToken(),
+        else: eatToken()
+    }))
 
     /* reader function */
 
@@ -97,7 +101,7 @@ function Lexer(file) {
     
     function peak() {
         if (position >= fileSize) {
-            console.log("reacher EOF")
+            // console.log("reacher EOF")
             return EOF
         }
 

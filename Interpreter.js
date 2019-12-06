@@ -2,11 +2,23 @@ const { Map } = require('immutable');
 
 const base_scope = new Map({
     "+": (a, b) => a + b,
+    "-": (a, b) => a - b,
     "*": (a, b) => a * b,
+    "/": (a, b) => a / b,
+    "=": (a, b) => a == b,
+    ">": (a, b) => a > b,
+    ">=": (a, b) => a >= b,
+    "<": (a, b) => a < b,
+    ">=": (a, b) => a >= b,
+    "and": (a, b) => a && b,
+    "or": (a, b) => a || b,
+
     "print": (p) => {
         console.log(p)
         return p
-    }
+    },
+    "true": true,
+    "false": false
 })
 
 function run(token, scope) {
@@ -47,6 +59,13 @@ function run(token, scope) {
             }
 
             return run(token.block, func_scope)
+        }
+    }
+    if (token.type == "if") {
+        if (run(token.condition, scope)) {
+            return run(token.then, scope)
+        } else {
+            return run(token.else, scope)
         }
     }
 }

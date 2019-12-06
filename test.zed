@@ -1,4 +1,6 @@
-let x   5
-let y   2
-let add fn a b c : (+ a (+ b c))
-    (add "x + y is " x y)
+let is10or5? fn n:
+    if (= n 10) true
+    if (= n 5)  true
+        false
+
+    (print (is10or5? 56))

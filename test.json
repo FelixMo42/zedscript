@@ -2,96 +2,89 @@
 	"type": "decleration",
 	"name": {
 		"type": "variable",
-		"name": "x"
+		"name": "is10or5?"
 	},
 	"value": {
-		"type": "number",
-		"value": 5
-	},
-	"block": {
-		"type": "decleration",
-		"name": {
-			"type": "variable",
-			"name": "y"
-		},
-		"value": {
-			"type": "number",
-			"value": 2
-		},
-		"block": {
-			"type": "decleration",
-			"name": {
+		"type": "function",
+		"params": [
+			{
 				"type": "variable",
-				"name": "add"
-			},
-			"value": {
-				"type": "function",
+				"name": "n"
+			}
+		],
+		"block": {
+			"type": "if",
+			"condition": {
+				"type": "call",
+				"fn": {
+					"type": "variable",
+					"name": "="
+				},
 				"params": [
 					{
 						"type": "variable",
-						"name": "a"
+						"name": "n"
 					},
 					{
-						"type": "variable",
-						"name": "b"
-					},
-					{
-						"type": "variable",
-						"name": "c"
+						"type": "number",
+						"value": 10
 					}
-				],
-				"block": {
+				]
+			},
+			"then": {
+				"type": "variable",
+				"name": "true"
+			},
+			"else": {
+				"type": "if",
+				"condition": {
 					"type": "call",
 					"fn": {
 						"type": "variable",
-						"name": "+"
+						"name": "="
 					},
 					"params": [
 						{
 							"type": "variable",
-							"name": "a"
+							"name": "n"
 						},
 						{
-							"type": "call",
-							"fn": {
-								"type": "variable",
-								"name": "+"
-							},
-							"params": [
-								{
-									"type": "variable",
-									"name": "b"
-								},
-								{
-									"type": "variable",
-									"name": "c"
-								}
-							]
+							"type": "number",
+							"value": 5
 						}
 					]
+				},
+				"then": {
+					"type": "variable",
+					"name": "true"
+				},
+				"else": {
+					"type": "variable",
+					"name": "false"
 				}
-			},
-			"block": {
+			}
+		}
+	},
+	"block": {
+		"type": "call",
+		"fn": {
+			"type": "variable",
+			"name": "print"
+		},
+		"params": [
+			{
 				"type": "call",
 				"fn": {
 					"type": "variable",
-					"name": "add"
+					"name": "is10or5?"
 				},
 				"params": [
 					{
-						"type": "string",
-						"value": "x + y is "
-					},
-					{
-						"type": "variable",
-						"name": "x"
-					},
-					{
-						"type": "variable",
-						"name": "y"
+						"type": "number",
+						"value": 56
 					}
 				]
 			}
-		}
+		]
 	}
 }
