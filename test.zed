@@ -1,6 +1,5 @@
-let is10or5? fn n:
-    if (= n 10) true
-    if (= n 5)  true
-        false
-
-    (print (is10or5? 56))
+let fib (for
+    fn x : (+ x 1)
+    fn x : (< x 5)
+)
+    (do seq fn x : (+ x 5))

@@ -2,88 +2,83 @@
 	"type": "decleration",
 	"name": {
 		"type": "variable",
-		"name": "is10or5?"
+		"name": "seq"
 	},
 	"value": {
-		"type": "function",
+		"type": "call",
+		"fn": {
+			"type": "variable",
+			"name": "for"
+		},
 		"params": [
 			{
-				"type": "variable",
-				"name": "n"
-			}
-		],
-		"block": {
-			"type": "if",
-			"condition": {
-				"type": "call",
-				"fn": {
-					"type": "variable",
-					"name": "="
-				},
+				"type": "number",
+				"value": 1
+			},
+			{
+				"type": "function",
 				"params": [
 					{
 						"type": "variable",
-						"name": "n"
-					},
-					{
-						"type": "number",
-						"value": 10
+						"name": "x"
 					}
-				]
-			},
-			"then": {
-				"type": "variable",
-				"name": "true"
-			},
-			"else": {
-				"type": "if",
-				"condition": {
+				],
+				"block": {
 					"type": "call",
 					"fn": {
 						"type": "variable",
-						"name": "="
+						"name": "+"
 					},
 					"params": [
 						{
 							"type": "variable",
-							"name": "n"
+							"name": "x"
+						},
+						{
+							"type": "number",
+							"value": 1
+						}
+					]
+				}
+			},
+			{
+				"type": "function",
+				"params": [
+					{
+						"type": "variable",
+						"name": "x"
+					}
+				],
+				"block": {
+					"type": "call",
+					"fn": {
+						"type": "variable",
+						"name": "<"
+					},
+					"params": [
+						{
+							"type": "variable",
+							"name": "x"
 						},
 						{
 							"type": "number",
 							"value": 5
 						}
 					]
-				},
-				"then": {
-					"type": "variable",
-					"name": "true"
-				},
-				"else": {
-					"type": "variable",
-					"name": "false"
 				}
 			}
-		}
+		]
 	},
 	"block": {
 		"type": "call",
 		"fn": {
 			"type": "variable",
-			"name": "print"
+			"name": "final"
 		},
 		"params": [
 			{
-				"type": "call",
-				"fn": {
-					"type": "variable",
-					"name": "is10or5?"
-				},
-				"params": [
-					{
-						"type": "number",
-						"value": 56
-					}
-				]
+				"type": "variable",
+				"name": "seq"
 			}
 		]
 	}
