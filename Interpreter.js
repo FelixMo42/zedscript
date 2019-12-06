@@ -3,11 +3,10 @@ const { Map } = require('immutable');
 const base_scope = new Map({
     "+": (a, b) => a + b,
     "*": (a, b) => a * b,
-    "1": 1,
-    "2": 2,
-    "3": 3,
-    "4": 4,
-    "5": 5
+    "print": (p) => {
+        console.log(p)
+        return p
+    }
 })
 
 function run(token, scope) {
@@ -29,6 +28,12 @@ function run(token, scope) {
                 run(token.value, scope)
             )
         )
+    }
+    if (token.type == "number") {
+        return token.value
+    }
+    if (token.type == "string") {
+        return token.value
     }
     if (token.type == "function") {
         return (...params) => {

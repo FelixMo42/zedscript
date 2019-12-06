@@ -37,8 +37,16 @@ function Lexer(file) {
         type: "call_end"
     }))
     punctuation.set("\"", () => {
+        let string = ""
+
+        while (peak() !== "\"") {
+            string += next()
+        }
+        skip()
+
         return {
-            type: "string"
+            type: "string",
+            value: string
         }
     })
 
@@ -127,6 +135,11 @@ function Lexer(file) {
 
                 if ( keywords.has(w) ) {
                     return keywords.get(w)()
+                } else if ( !isNaN(w) ) {
+                    return {
+                        type: "number",
+                        value: parseInt(w)
+                    }
                 } else {
                     return {
                         type: "variable",

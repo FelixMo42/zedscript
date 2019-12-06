@@ -1,5 +1,4 @@
 let x   5
 let y   2
-let z   3
-let add fn a b c : (+ (+ a b) c)
-    (add x y z)
+let add fn a b c : (+ a (+ b c))
+    (add "x + y is " x y)

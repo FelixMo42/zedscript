@@ -5,8 +5,8 @@
 		"name": "x"
 	},
 	"value": {
-		"type": "variable",
-		"name": "5"
+		"type": "number",
+		"value": 5
 	},
 	"block": {
 		"type": "decleration",
@@ -15,93 +15,82 @@
 			"name": "y"
 		},
 		"value": {
-			"type": "variable",
-			"name": "2"
+			"type": "number",
+			"value": 2
 		},
 		"block": {
 			"type": "decleration",
 			"name": {
 				"type": "variable",
-				"name": "z"
+				"name": "add"
 			},
 			"value": {
-				"type": "variable",
-				"name": "3"
-			},
-			"block": {
-				"type": "decleration",
-				"name": {
-					"type": "variable",
-					"name": "add"
-				},
-				"value": {
-					"type": "function",
+				"type": "function",
+				"params": [
+					{
+						"type": "variable",
+						"name": "a"
+					},
+					{
+						"type": "variable",
+						"name": "b"
+					},
+					{
+						"type": "variable",
+						"name": "c"
+					}
+				],
+				"block": {
+					"type": "call",
+					"fn": {
+						"type": "variable",
+						"name": "+"
+					},
 					"params": [
 						{
 							"type": "variable",
 							"name": "a"
 						},
 						{
-							"type": "variable",
-							"name": "b"
-						},
-						{
-							"type": "variable",
-							"name": "c"
-						}
-					],
-					"block": {
-						"type": "call",
-						"fn": {
-							"type": "variable",
-							"name": "+"
-						},
-						"params": [
-							{
-								"type": "call",
-								"fn": {
-									"type": "variable",
-									"name": "+"
-								},
-								"params": [
-									{
-										"type": "variable",
-										"name": "a"
-									},
-									{
-										"type": "variable",
-										"name": "b"
-									}
-								]
-							},
-							{
+							"type": "call",
+							"fn": {
 								"type": "variable",
-								"name": "c"
-							}
-						]
-					}
-				},
-				"block": {
-					"type": "call",
-					"fn": {
-						"type": "variable",
-						"name": "add"
-					},
-					"params": [
-						{
-							"type": "variable",
-							"name": "x"
-						},
-						{
-							"type": "variable",
-							"name": "y"
-						},
-						{
-							"type": "variable",
-							"name": "z"
+								"name": "+"
+							},
+							"params": [
+								{
+									"type": "variable",
+									"name": "b"
+								},
+								{
+									"type": "variable",
+									"name": "c"
+								}
+							]
 						}
 					]
 				}
+			},
+			"block": {
+				"type": "call",
+				"fn": {
+					"type": "variable",
+					"name": "add"
+				},
+				"params": [
+					{
+						"type": "string",
+						"value": "x + y is "
+					},
+					{
+						"type": "variable",
+						"name": "x"
+					},
+					{
+						"type": "variable",
+						"name": "y"
+					}
+				]
 			}
 		}
 	}
