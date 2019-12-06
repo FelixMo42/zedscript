@@ -1,0 +1,30 @@
+{
+	"type": "call",
+	"fn": {
+		"type": "variable",
+		"name": "+"
+	},
+	"params": [
+		{
+			"type": "call",
+			"fn": {
+				"type": "variable",
+				"name": "*"
+			},
+			"params": [
+				{
+					"type": "variable",
+					"name": "3"
+				},
+				{
+					"type": "variable",
+					"name": "4"
+				}
+			]
+		},
+		{
+			"type": "variable",
+			"name": "1"
+		}
+	]
+}
