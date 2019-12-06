@@ -19,21 +19,90 @@
 			"name": "2"
 		},
 		"block": {
-			"type": "call",
-			"fn": {
+			"type": "decleration",
+			"name": {
 				"type": "variable",
-				"name": "+"
+				"name": "z"
 			},
-			"params": [
-				{
+			"value": {
+				"type": "variable",
+				"name": "3"
+			},
+			"block": {
+				"type": "decleration",
+				"name": {
 					"type": "variable",
-					"name": "x"
+					"name": "add"
 				},
-				{
-					"type": "variable",
-					"name": "y"
+				"value": {
+					"type": "function",
+					"params": [
+						{
+							"type": "variable",
+							"name": "a"
+						},
+						{
+							"type": "variable",
+							"name": "b"
+						},
+						{
+							"type": "variable",
+							"name": "c"
+						}
+					],
+					"block": {
+						"type": "call",
+						"fn": {
+							"type": "variable",
+							"name": "+"
+						},
+						"params": [
+							{
+								"type": "call",
+								"fn": {
+									"type": "variable",
+									"name": "+"
+								},
+								"params": [
+									{
+										"type": "variable",
+										"name": "a"
+									},
+									{
+										"type": "variable",
+										"name": "b"
+									}
+								]
+							},
+							{
+								"type": "variable",
+								"name": "c"
+							}
+						]
+					}
+				},
+				"block": {
+					"type": "call",
+					"fn": {
+						"type": "variable",
+						"name": "add"
+					},
+					"params": [
+						{
+							"type": "variable",
+							"name": "x"
+						},
+						{
+							"type": "variable",
+							"name": "y"
+						},
+						{
+							"type": "variable",
+							"name": "z"
+						}
+					]
 				}
-			]
+			}
 		}
 	}
 }

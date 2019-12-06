@@ -42,12 +42,34 @@ function Lexer(file) {
         }
     })
 
+    punctuation.set(":", () => ({
+        type: "func_continue"
+    }))
+
     punctuation.set(EOF, () => ({
         type: "end_of_file"
     }))
 
     let keywords = new Map()
-    keywords.set("fn", () => {})
+    keywords.set("fn", () => {
+        let params = []
+
+        while (true) {
+            let token = eatToken()
+
+            if (token.type == "func_continue") {
+                break
+            }
+
+            params.push(token)
+        }
+
+        return {
+            type: "function",
+            params: params,
+            block: eatToken()
+        }
+    })
     keywords.set("let", () => {
         return {
             type: "decleration",
