@@ -49,13 +49,10 @@ function Lexer(file) {
     let keywords = new Map()
     keywords.set("fn", () => {})
     keywords.set("let", () => {
-        let name = word()
-
         return {
             type: "decleration",
-
-            
-
+            name: eatToken(),
+            value: eatToken(),
             block: eatToken()
         }
     })

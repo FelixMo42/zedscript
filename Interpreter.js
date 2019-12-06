@@ -21,15 +21,15 @@ function run(token, scope) {
         }
         return scope.get(token.name)
     }
-    // if (token.type == "decleration") {
-    //     run(  
-    //         token.value,
-    //         map.set(
-    //             token.name,
-    //             run(token, scope)
-    //         )
-    //     )
-    // }
+    if (token.type == "decleration") {
+        return run(  
+            token.block,
+            scope.set(
+                token.name.name,
+                run(token.value, scope)
+            )
+        )
+    }
 }
 
 module.exports = (tokens) => run(tokens, base_scope)
