@@ -1,161 +1,75 @@
 const EOF = "end_of_file"
 
 function Lexer(file) {
-    let fileSize = file.length
-    let run = true
-    let position = 0
-
-    let punctuation = new Map()
-
-    /* skippable punctuation*/
-    punctuation.set(" " , () => {})
-    punctuation.set("\n", () => {})
+    let punctuation = new Set([
+        ' ', '\n', '\t',
+        '|',  ':', '@', 
+        '(', ')', 
+        "[", "]",
+        "{", "}",
+        "\"",
+    ])
     
-    punctuation.set("(", () => {
-        let fn = eatToken()
+    let keywords = new Set([
+        "if", "let", "fn"
+    ])
 
-        let params = []
+    let tokens = []
 
-        while (true) {
-            let token = eatToken()
+    let length = file.length
+    let index = 0
+    let word = ""
+    let line = 0
+    let character = 0
+    while (index < length) {
+        let char = String.fromCharCode(file[index])
 
-            if (token.type === "call_end") {
-                break
-            }
-
-            params.push(token)
-        }
-
-        return {
-            type: "call",
-            fn: fn,
-            params: params
-        }
-    })
-    
-    punctuation.set(")", () => ({
-        type: "call_end"
-    }))
-    punctuation.set("\"", () => {
-        let string = ""
-
-        while (peak() !== "\"") {
-            string += next()
-        }
-        skip()
-
-        return {
-            type: "string",
-            value: string
-        }
-    })
-
-    punctuation.set(":", () => ({
-        type: "func_continue"
-    }))
-
-    punctuation.set(EOF, () => ({
-        type: "end_of_file"
-    }))
-
-    let keywords = new Map()
-    keywords.set("fn", () => {
-        let params = []
-
-        while (true) {
-            let token = eatToken()
-
-            if (token.type == "func_continue") {
-                break
-            }
-
-            params.push(token)
-        }
-
-        return {
-            type: "function",
-            params: params,
-            block: eatToken()
-        }
-    })
-    keywords.set("let", () => ({
-        type: "decleration",
-        name: eatToken(),
-        value: eatToken(),
-        block: eatToken()
-    }) )
-    keywords.set("if", () => ({
-        type: "if",
-        condition: eatToken(),
-        then: eatToken(),
-        else: eatToken()
-    }))
-
-    /* reader function */
-
-    function next() {
-        let char = peak()
-        skip()
-        return char
-    }
-    
-    function peak() {
-        if (position >= fileSize) {
-            // console.log("reacher EOF")
-            return EOF
-        }
-
-        return String.fromCharCode( file[position] )
-    }
-    
-    function skip() {
-        position += 1
-    }
-
-    function word() {
-        let word = ""
-
-        while ( !punctuation.has(peak()) ) {
-            word += next()
-        }
-
-        return word
-    }
-
-    /* eaters */
-
-    function eatToken() {
-        while (true) {
-            let char = peak()
-
-            if (punctuation.has(char) ) {
-                skip()
-                let token = punctuation.get(char)( char )
-                if (token) {
-                    return token
-                }
-            } else {
-                let w = word()
-
-                if ( keywords.has(w) ) {
-                    return keywords.get(w)()
-                } else if ( !isNaN(w) ) {
-                    return {
-                        type: "number",
-                        value: parseInt(w)
-                    }
+        if (punctuation.has(char)) {
+            if (word != "") {
+                if ( !isNaN(word) ) {
+                    tokens.push({
+                        "type": "number",
+                        "value": parseInt(word)
+                    })
                 } else {
-                    return {
-                        type: "variable",
-                        name: w
-                    }
+                    tokens.push({
+                        "type": keywords.has(word) ? "keyword" : "identifier",
+                        "value": word
+                    })
                 }
+                word = ""
             }
+
+            tokens.push({
+                "type": "punctuation",
+                "value": char,
+                "line": line,
+                "character": character  
+            })
+        } else {
+            word += char
         }
-        
+
+        // incrament the counters
+        character += 1
+        index += 1
+        if (char == "\n") {
+            line += 1
+            character = 0
+        }
     }
 
-    return eatToken()
+    return tokens
 }
+
+let removable = new Set([
+    " ", "\n", "\t"
+])
+
+function strip(tokens) {
+    return tokens.filter(token => !removable.has(token.value))
+}
+
+Lexer.strip = strip
 
 module.exports = Lexer
