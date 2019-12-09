@@ -70,29 +70,17 @@ const base_scope = new Map({
 })
 
 function run(token, scope) {
-    if (token.type == "call") {
-        let params = token.params.map((param) => run(param, scope))
-        return run(token.fn, scope)(...params)
-    }
-    if (token.type == "identifier") {
-        if ( !scope.has(token.value) ) {
-            console.error(`Variable ${token.value} does not exist`)
-        }
-        return scope.get(token.value)
-    }
-    if (token.type == "decleration") {
-        return run(  
-            token.block,
-            scope.set(
-                token.name.value,
-                run(token.value, scope)
-            )
-        )
-    }
+
+    /* simple data types */
     if (token.type == "number") {
         return token.value
     }
     if (token.type == "string") {
+        return token.value
+    }
+
+    /* complex data types */
+    if (token.type == "touple") {
         return token.value
     }
     if (token.type == "function") {
@@ -109,12 +97,35 @@ function run(token, scope) {
             return run(token.block, func_scope)
         }
     }
+
+    /* controlle flow */
+    if (token.type == "call") {
+        let params = token.params.map((param) => run(param, scope))
+        return run(token.fn, scope)(...params)
+    }
+    if (token.type == "decleration") {
+        return run(  
+            token.block,
+            scope.set(
+                token.name.value,
+                run(token.value, scope)
+            )
+        )
+    }
     if (token.type == "if") {
         if (run(token.condition, scope)) {
             return run(token.then, scope)
         } else {
             return run(token.else, scope)
         }
+    }
+
+    /* index variable */
+    if (token.type == "identifier") {
+        if ( !scope.has(token.value) ) {
+            console.error(`Variable ${token.value} does not exist`)
+        }
+        return scope.get(token.value)
     }
 }
 

@@ -60,6 +60,25 @@ function Parser(tokens) {
         else: eat()
     }))
 
+    keywords.set("|", () => {
+        let values = []
+
+        while (true) {
+            let token = peak()
+
+            if (token.type == "punctuation" && token.value == "|") {
+                skip()
+                break
+            }
+
+            values.push( eat() )
+        }
+
+        return {
+            "type": "tuple",
+            "values": values
+        }
+    })
 
     /* genaric usefull functions */
 

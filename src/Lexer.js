@@ -1,5 +1,3 @@
-const EOF = "end_of_file"
-
 function Lexer(file) {
     let punctuation = new Set([
         ' ', '\n', '\t',
