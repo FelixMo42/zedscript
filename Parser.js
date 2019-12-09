@@ -1,37 +1,101 @@
 function Parser(tokens) {
     let position = 0
-    let length = tokens.length
 
-    let objects = new Map({
-        "(": () => {
-            let fn = next()
-            let params = []
+    let keywords = new Map()
 
-            while (true) {
-                let token = next()
+    keywords.set("(", () => {
+        let fn = next()
+        let params = []
 
-                if (token.type == ")") {
-                    break
-                }
+        while (true) {
+            let token = peak()
 
-                params.push( eat() )
+            if (token.type == "punctuation", token.value == ")") {
+                skip()
+                break
             }
 
-            return {
-                "type": "call",
-                "fn": fn
-            }
+            params.push( eat() )
+        }
+
+        return {
+            "type": "call",
+            "fn": fn,
+            "params": params
         }
     })
 
+    keywords.set("fn", () => {
+        let params = []
+
+        while (true) {
+            let token = eat()
+
+            if (token.type == "punctuation" && token.value == ":") {
+                break
+            }
+
+            params.push(token)
+        }
+
+        return {
+            type: "function",
+            params: params,
+            block: eat()
+        }
+    })
+    
+    keywords.set("let", () => ({
+        type: "decleration",
+        name: eat(),
+        value: eat(),
+        block: eat()
+    }) )
+
+    keywords.set("if", () => ({
+        type: "if",
+        condition: eat(),
+        then: eat(),
+        else: eat()
+    }))
+
+
+    /* genaric usefull functions */
+
     function next() {
-        let token = tokens[position]
-        position += 1
+        let token = peak()
+        skip()
         return token
+    }
+
+    function peak() {
+        return tokens[position]
+    }
+
+    function skip() {
+        position += 1
     }
 
     function eat() {
         let token = next()
+
+        if (token.type == "number") {
+            return token
+        }
+
+        if (token.type == "string") {
+            return token
+        }
+
+        if (token.type == "identifier") {
+            return token
+        }
+
+        if (keywords.has(token.value)) {
+            return keywords.get(token.value)(token)
+        }
+
+        console.warn("Failed to parse token: ", token)
     }
     
     return eat()

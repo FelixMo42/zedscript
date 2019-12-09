@@ -1,5 +1,2 @@
-let fib (for
-    fn x : (+ x 1)
-    fn x : (< x 5)
-)
-    (do seq fn x : (+ x 5))
+let x 5
+    if (= x 56) 3 2

@@ -1,4 +1,4 @@
-const { Map } = require('immutable');
+const { Map } = require('immutable')
 
 class Iterator {
     constructor(value, next, done, isDone) {
@@ -74,17 +74,17 @@ function run(token, scope) {
         let params = token.params.map((param) => run(param, scope))
         return run(token.fn, scope)(...params)
     }
-    if (token.type == "variable") {
-        if ( !scope.has(token.name) ) {
-            console.error(`Variable ${token.name} does not exist`)
+    if (token.type == "identifier") {
+        if ( !scope.has(token.value) ) {
+            console.error(`Variable ${token.value} does not exist`)
         }
-        return scope.get(token.name)
+        return scope.get(token.value)
     }
     if (token.type == "decleration") {
         return run(  
             token.block,
             scope.set(
-                token.name.name,
+                token.name.value,
                 run(token.value, scope)
             )
         )
@@ -101,7 +101,7 @@ function run(token, scope) {
 
             for (let index in token.params) {
                 func_scope = func_scope.set(
-                    token.params[index].name,
+                    token.params[index].value,
                     params[index]
                 )
             }
