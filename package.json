@@ -1,12 +1,13 @@
 {
   "name": "zed",
   "version": "0.0.0",
-  "main": "main.js",
+  "main": "src/main.js",
   "dependencies": {
     "immutable": "^4.0.0-rc.12"
   },
   "devDependencies": {},
   "scripts": {
+    "start": "node .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

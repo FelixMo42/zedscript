@@ -29,13 +29,14 @@ function Parser(tokens) {
         let params = []
 
         while (true) {
-            let token = eat()
+            let token = peak()
 
             if (token.type == "punctuation" && token.value == ":") {
+                skip()
                 break
             }
 
-            params.push(token)
+            params.push( eat() )
         }
 
         return {
