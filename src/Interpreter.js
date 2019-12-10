@@ -53,7 +53,6 @@ const base_scope = new Map({
     "false": false,
 
     "print": (p) => {
-        console.log(p)
         return p
     },
 
@@ -80,8 +79,11 @@ function run(token, scope) {
     }
 
     /* complex data types */
-    if (token.type == "touple") {
-        return token.value
+    if (token.type == "tuple") {
+        return {
+            type: "tuple",
+            values: token.values.map((param) => run(param, scope))
+        }
     }
     if (token.type == "function") {
         return (...params) => {
@@ -100,7 +102,20 @@ function run(token, scope) {
 
     /* controlle flow */
     if (token.type == "call") {
-        let params = token.params.map((param) => run(param, scope))
+        let params = []
+
+        for (let param of token.params) {
+            let value = run(param, scope)
+            if ( value.type == "tuple" ) {
+                for (let val of value.values) {
+                    params.push(val)
+                }
+            } else {
+                params.push(value)
+            }
+        }
+
+        // let params = token.params.map((param) => run(param, scope))
         return run(token.fn, scope)(...params)
     }
     if (token.type == "decleration") {
@@ -127,6 +142,8 @@ function run(token, scope) {
         }
         return scope.get(token.value)
     }
+
+    console.warn("Cant interprete token: ", token)
 }
 
 module.exports = (tokens) => run(tokens, base_scope)
