@@ -1,43 +1,65 @@
+const EOF = "EOF"
+
+const punctuation = new Set([
+    ' ', '\n', '\t',
+    '|',  ':', '@', 
+    '(', ')', 
+    "[", "]",
+    "{", "}",
+    "\"",
+    EOF
+])
+
+const keywords = new Set([
+    "if", "let", "fn"
+])
+
+function addWord(tokens, word) {
+    // if its blank then dont do anything
+    if (word == "") {
+        return
+    }
+
+    // if its a number then push a number token
+    if ( !isNaN(word) ) {
+        tokens.push({
+            "type": "number",
+            "value": parseInt(word)
+        })
+
+    // else check if its a keyword or just a regular identifier and push that
+    } else {
+        tokens.push({
+            "type": keywords.has(word) ? "keyword" : "identifier",
+            "value": word
+        })
+    }
+}
+
 function Lexer(file) {
-    let punctuation = new Set([
-        ' ', '\n', '\t',
-        '|',  ':', '@', 
-        '(', ')', 
-        "[", "]",
-        "{", "}",
-        "\"",
-    ])
-    
-    let keywords = new Set([
-        "if", "let", "fn"
-    ])
+    let length = file.length
 
     let tokens = []
 
-    let length = file.length
     let index = 0
     let word = ""
+
+    // keep track of the visual position for debugging purposes
     let line = 0
     let character = 0
+
     while (index < length) {
         let char = String.fromCharCode(file[index])
 
+        // if current character is punctuation
         if (punctuation.has(char)) {
-            if (word != "") {
-                if ( !isNaN(word) ) {
-                    tokens.push({
-                        "type": "number",
-                        "value": parseInt(word)
-                    })
-                } else {
-                    tokens.push({
-                        "type": keywords.has(word) ? "keyword" : "identifier",
-                        "value": word
-                    })
-                }
-                word = ""
-            }
+            // add word to tokens first
+            addWord(tokens, word)
 
+            // reset word
+            word = ""
+            
+            // push the punctuation
             tokens.push({
                 "type": "punctuation",
                 "value": char,
@@ -57,15 +79,17 @@ function Lexer(file) {
         }
     }
 
+    addWord(tokens, word)
+
     return tokens
 }
 
-let removable = new Set([
+const stripable = new Set([
     " ", "\n", "\t"
 ])
 
 function strip(tokens) {
-    return tokens.filter(token => !removable.has(token.value))
+    return tokens.filter(token => !stripable.has(token.value))
 }
 
 Lexer.strip = strip
