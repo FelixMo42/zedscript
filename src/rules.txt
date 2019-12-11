@@ -1,0 +1,11 @@
+string
+    #' -> while not #' -> #'
+
+blankspace
+    \s or \t or \n
+
+punctuation 
+    @blankspace or #( or #)
+
+word
+    while not @punctuation

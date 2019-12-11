@@ -1,2 +1,1 @@
-let fibNext fn a b : | b (+ a b) |
-    (+ (fibNext 1 1))
+'hi'

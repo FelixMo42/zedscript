@@ -6,7 +6,7 @@ const punctuation = new Set([
     '(', ')', 
     "[", "]",
     "{", "}",
-    "\"",
+    "'",
     EOF
 ])
 
@@ -45,7 +45,7 @@ function Lexer(file) {
     let word = ""
 
     // keep track of the visual position for debugging purposes
-    let line = 0
+    let line      = 0
     let character = 0
 
     while (index < length) {

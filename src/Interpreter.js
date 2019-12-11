@@ -59,6 +59,12 @@ const base_scope = new Map({
     "for": (inital, next, done = () => false) => {
         return new Iterator(inital, next, done, false)
     },
+    "next": (iterator) => {
+        return iterator.next()
+    },
+    "val": (iterator) => {
+        return iterator.value
+    },
     "final": (iterator) => {
         while ( !iterator.done ) {
             iterator = iterator.next()
