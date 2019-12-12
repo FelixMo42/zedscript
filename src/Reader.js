@@ -1,5 +1,3 @@
-const { List } = require('immutable')
-
 // Text reader
 
 function reader(string, pos=0) {
@@ -13,63 +11,65 @@ function reader(string, pos=0) {
 
 // Lexer syntax rules
 
-const rule = function(check, thenRule, elseRule) {
-    const func = (char) => {
-        let next = check(char.val) ? thenRule : elseRule
+const rule = function(conditions, elseCondition, eat=true) {
+    const func = (position, body="") => {
+        let condition = elseCondition
         
-        if (next == rule.loop) {
-            next = func
+        for (let i = 0; i < conditions.length; i += 2) {
+            if ( conditions[i](position.val) ) {
+                condition = conditions[i + 1]
+
+                break
+            }
         }
 
-        if (next == rule.done) {
-            return ["", char]
+        if (condition == rule.loop) {
+            condition = func
+        }
+
+        if (condition.eat) {
+            return condition( position.next , body + position.val )
         } else {
-            let [word, prec] = next( char.next )
-            return [char.val + word, prec]
+            return condition( position , body )
         }
     }
 
-    func.check = check
+    // func.check = check
+
+    func.eat = eat
 
     return Object.freeze(func)
 }
 
+function _(func, options) {
+    func.eat = options.eat
+
+    return func
+}
+
 rule.loop = Symbol("loop rule")
-rule.done = Symbol("loop done")
-
-rule.fail = Symbol("loop done")
-
-rule.final = rule(
-    () => true,
-    rule.done,
-    rule.done
+rule.done = ({type, eat=true}) => _(
+    (char, body) => [char, {type, body}],
+    { eat: eat }
 )
 
-rule.is = (characters, thenRule=rule.final, elseRule=rule.done) =>
-    rule(
-        (char) => characters.includes(char),
-        thenRule,
-        elseRule
-    )
+rule.fail = (char, body) => [char, { type: "fail", body: body }]
 
 // Lexer
 
 class Lexer {
-    constructor(...types) {
-        this.types = types
+    constructor(...rules) {
+        this.rules = rules
     }
 
     *tokenize(text) {
         if (text.done) { return }
 
-        for (let type of this.types) {
-            let [body, next] = type.rule(text)
+        for (let rule of this.rules) {
+            let [next, token] = rule(text)
 
-            if ( body !== "" ) {
-                yield {
-                    type: type.name,
-                    body: body
-                }
+            if ( token.type != "fail" ) {
+                yield token
 
                 yield *this.tokenize(next)
                 
@@ -83,43 +83,78 @@ class Lexer {
 
 // test it
 
-let str = {
-    name: "string",
-    rule: rule.is(
-        ["'"],
-        rule(
-            (char) => char !== "'",
-            rule.loop,
-            rule.final
-        ),
-        rule.done
-    )
-}
-
-let blankspace = {
-    name: "blankspace",
-    rule: rule.is([" ", "\n", "\t"])
-}
-
-let punctuation = {
-    name: "punctation",
-    rule: rule.is(["(", ")", "'"])
-}
-
-let word = {
-    name: "word",
-    rule: rule(
-        (char) =>
-            !blankspace.rule.check(char) &&
-            !punctuation.rule.check(char),
+let string = rule(
+    (char) => char == "'",
+    rule(
+        (char) => char !== "'",
         rule.loop,
-        rule.done
-    )
-}
+        rule(
+            (char) => char === "'",
+            rule.done({ type: "string" }),
+            rule.fail,
+            false
+        )
+    ),
+    rule.fail
+)
 
-let lexer = new Lexer(str, blankspace, punctuation, word)
+// numbers
 
-let text = reader("  -1 +1 .1  0.1  ")
+let whitespace = rule(
+    [
+        (char) => char === " ",
+        rule.done({ type: "whitespace" })
+    ],
+    rule.fail
+)
+
+// number
+
+let postDotNumber = rule(
+    [
+        (char) => "0123456789".includes(char),
+        rule.loop
+    ],
+    rule.done({type: "number"})
+)
+
+let preDotNumber = rule(
+    [
+        (char) => ".".includes(char),
+        postDotNumber,
+
+        (char) => "0123456789".includes(char),
+        rule.loop
+    ],
+    rule.done({type: "number"})
+)
+
+let number = rule(
+    [
+        (char) => "+-".includes(char),
+        rule(
+            [
+                (char) => ".".includes(char),
+                postDotNumber,
+  
+                (char) => "0123456789".includes(char),
+                preDotNumber
+            ],
+            rule.fail
+        ),
+
+        (char) => ".".includes(char),
+        postDotNumber,
+
+        (char) => "0123456789".includes(char),
+        preDotNumber
+    ],
+    rule.fail
+)
+
+let lexer = new Lexer(whitespace, number)
+
+let text = reader(" 11   +1  -1    +.1   12.1  ")
 
 let tokens = lexer.tokenize(text)
 
