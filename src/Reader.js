@@ -98,24 +98,28 @@ let string = rule(
     rule.fail
 )
 
-// numbers
-
-let whitespace = rule(
-    [
-        (char) => char === " ",
-        rule.done({ type: "whitespace" })
-    ],
-    rule.fail
-)
-
 // number
+
+let whitespace = " \t\n"
+let punctuation = "():\'" + whitespace
+
+let word = rule(
+    [
+        (char) => !punctuation.includes(char),
+        rule.loop
+    ],
+    rule.done({ type: "word", eat: false })
+)
 
 let postDotNumber = rule(
     [
         (char) => "0123456789".includes(char),
-        rule.loop
+        rule.loop,
+
+        (char) => punctuation.includes(char),
+        rule.done({type: "number", eat: false})
     ],
-    rule.done({type: "number"})
+    word
 )
 
 let preDotNumber = rule(
@@ -124,12 +128,19 @@ let preDotNumber = rule(
         postDotNumber,
 
         (char) => "0123456789".includes(char),
-        rule.loop
+        rule.loop,
+
+        (char) => punctuation.includes(char),
+        rule.done({type: "number", eat: false})
     ],
-    rule.done({type: "number"})
+    word
 )
 
-let number = rule(
+let punc = rule(
+
+)
+
+let theOneRule = rule(
     [
         (char) => "+-".includes(char),
         rule(
@@ -147,14 +158,20 @@ let number = rule(
         postDotNumber,
 
         (char) => "0123456789".includes(char),
-        preDotNumber
+        preDotNumber,
+
+        (char) => whitespace.includes(char),
+        rule.done({ type: "whitespace", eat: true }),
+
+        (char) => punctuation.includes(char),
+        rule.done({ type: "punctuation", eat: true }),
     ],
     rule.fail
 )
 
-let lexer = new Lexer(whitespace, number)
+let lexer = new Lexer(theOneRule)
 
-let text = reader(" 11   +1  -1    +.1   12.1  ")
+let text = reader(" (1 + 1) ")
 
 let tokens = lexer.tokenize(text)
 
