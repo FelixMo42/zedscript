@@ -181,6 +181,8 @@ let theOneRule = rule(
     word
 )
 
+const keywords = new Set(["fn", "let", "if"])
+
 const wrapper = (file) => {
     let text = reader(file)
 
@@ -190,6 +192,11 @@ const wrapper = (file) => {
     let struc = []
     let result = tokens.next()
     while (!result.done) {
+        if (struc.type == "word") {
+            if (keywords.has( struc.body )) {
+                struc.type = "punctuation"
+            }
+        }
         struc.push(result.value)
         result = tokens.next()
     }

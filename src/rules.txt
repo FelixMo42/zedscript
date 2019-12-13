@@ -1,11 +1,9 @@
-string
-    #' -> while not #' -> #'
+value = 
+    @if :value :value :value
+    @let :word :value :value
+    
+    @fn *:word @: :value
 
-blankspace
-    \s or \t or \n
-
-punctuation 
-    @blankspace or #( or #)
-
-word
-    while not @punctuation
+    :word
+    :string
+    :number
