@@ -1,1 +1,2 @@
-'hi'
+let add fn a b : (+ a b)
+    (add 17 '123')

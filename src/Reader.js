@@ -142,6 +142,15 @@ let punc = rule(
 
 let theOneRule = rule(
     [
+        (char) => "'".includes(char),
+        rule(
+            [
+                (char) => "'" === char,
+                rule.done({ type: "word", eat: true })
+            ],
+            rule.loop
+        ),
+
         (char) => "+-".includes(char),
         rule(
             [
@@ -149,9 +158,12 @@ let theOneRule = rule(
                 postDotNumber,
   
                 (char) => "0123456789".includes(char),
-                preDotNumber
+                preDotNumber,
+
+                (char) => punctuation.includes(char),
+                rule.done({ type: "word", eat: false })
             ],
-            rule.fail
+            word
         ),
 
         (char) => ".".includes(char),
@@ -166,17 +178,26 @@ let theOneRule = rule(
         (char) => punctuation.includes(char),
         rule.done({ type: "punctuation", eat: true }),
     ],
-    rule.fail
+    word
 )
 
 let lexer = new Lexer(theOneRule)
 
-let text = reader(" (1 + 1) ")
+let text = reader("fn a b : (+ a b)")
 
 let tokens = lexer.tokenize(text)
 
+function save(data, name) {
+    return new Promise((resolve) => {
+        require("fs").writeFile(`out/${name}.json`, JSON.stringify(data, null, '\t'), resolve)
+    })
+}
+
+let struc = []
 let result = tokens.next()
 while (!result.done) {
-    console.log(result.value)
+    struc.push(result.value)
     result = tokens.next()
 }
+
+save(struc, "tokens")

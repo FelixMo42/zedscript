@@ -16,17 +16,15 @@ const filePath = "test.zed"
 async function runFile(filePath) {
     const file = fs.readFileSync(filePath)
 
-    let tokens = Lexer.strip(
-        Lexer(file)
-    )
+    let tokens = Lexer.strip( Lexer(file) )
 
     await save(tokens, "tokens")
 
-    let ast = Parser(tokens)
+    // let ast = Parser(tokens)
 
-    await save(ast, "ast")
+    // await save(ast, "ast")
 
-    console.log( Interpreter(ast) )
+    // console.log( Interpreter(ast) )
 }
 
 runFile(filePath)

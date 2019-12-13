@@ -1,97 +1,202 @@
-const EOF = "EOF"
+// Text reader
 
-const punctuation = new Set([
-    ' ', '\n', '\t',
-    '|',  ':', '@', 
-    '(', ')', 
-    "[", "]",
-    "{", "}",
-    "'",
-    EOF
-])
-
-const keywords = new Set([
-    "if", "let", "fn"
-])
-
-function addWord(tokens, word) {
-    // if its blank then dont do anything
-    if (word == "") {
-        return
-    }
-
-    // if its a number then push a number token
-    if ( !isNaN(word) ) {
-        tokens.push({
-            "type": "number",
-            "value": parseInt(word)
-        })
-
-    // else check if its a keyword or just a regular identifier and push that
-    } else {
-        tokens.push({
-            "type": keywords.has(word) ? "keyword" : "identifier",
-            "value": word
-        })
+function reader(string, pos=0) {
+    let done = pos >= string.length
+    return {
+        val: String.fromCharCode(string[pos]),
+        done: done,
+        next: !done ? reader(string, pos + 1) : false
     }
 }
 
-function Lexer(file) {
-    let length = file.length
+// Lexer syntax rules
 
-    let tokens = []
+const rule = function(conditions, elseCondition, eat=true) {
+    const func = (position, body="") => {
+        let condition = elseCondition
+        
+        for (let i = 0; i < conditions.length; i += 2) {
+            if ( conditions[i](position.val) ) {
+                condition = conditions[i + 1]
 
-    let index = 0
-    let word = ""
+                break
+            }
+        }
 
-    // keep track of the visual position for debugging purposes
-    let line      = 0
-    let character = 0
+        if (condition == rule.loop) {
+            condition = func
+        }
 
-    while (index < length) {
-        let char = String.fromCharCode(file[index])
-
-        // if current character is punctuation
-        if (punctuation.has(char)) {
-            // add word to tokens first
-            addWord(tokens, word)
-
-            // reset word
-            word = ""
-            
-            // push the punctuation
-            tokens.push({
-                "type": "punctuation",
-                "value": char,
-                "line": line,
-                "character": character  
-            })
+        if (condition.eat) {
+            return condition( position.next , body + position.val )
         } else {
-            word += char
-        }
-
-        // incrament the counters
-        character += 1
-        index += 1
-        if (char == "\n") {
-            line += 1
-            character = 0
+            return condition( position , body )
         }
     }
 
-    addWord(tokens, word)
+    // func.check = check
 
-    return tokens
+    func.eat = eat
+
+    return Object.freeze(func)
 }
 
-const stripable = new Set([
-    " ", "\n", "\t"
-])
+function _(func, options) {
+    func.eat = options.eat
 
-function strip(tokens) {
-    return tokens.filter(token => !stripable.has(token.value))
+    return func
 }
 
-Lexer.strip = strip
+rule.loop = Symbol("loop rule")
+rule.done = ({type, eat=true}) => _(
+    (char, body) => [char, {type, body}],
+    { eat: eat }
+)
 
-module.exports = Lexer
+rule.fail = (char, body) => [char, { type: "fail", body: body }]
+
+// Lexer
+
+class Lexer {
+    constructor(...rules) {
+        this.rules = rules
+    }
+
+    *tokenize(text) {
+        if (text.done) { return }
+
+        for (let rule of this.rules) {
+            let [next, token] = rule(text)
+
+            if ( token.type != "fail" ) {
+                yield token
+
+                yield *this.tokenize(next)
+                
+                return
+            }
+        }
+
+        console.warn(`Failed to tokenize character: "${text.val}"`)
+    }
+}
+
+// test it
+
+let string = rule(
+    (char) => char == "'",
+    rule(
+        (char) => char !== "'",
+        rule.loop,
+        rule(
+            (char) => char === "'",
+            rule.done({ type: "string" }),
+            rule.fail,
+            false
+        )
+    ),
+    rule.fail
+)
+
+// number
+
+let whitespace = " \t\n"
+let punctuation = "():\'" + whitespace
+
+let word = rule(
+    [
+        (char) => !punctuation.includes(char),
+        rule.loop
+    ],
+    rule.done({ type: "word", eat: false })
+)
+
+let postDotNumber = rule(
+    [
+        (char) => "0123456789".includes(char),
+        rule.loop,
+
+        (char) => punctuation.includes(char),
+        rule.done({type: "number", eat: false})
+    ],
+    word
+)
+
+let preDotNumber = rule(
+    [
+        (char) => ".".includes(char),
+        postDotNumber,
+
+        (char) => "0123456789".includes(char),
+        rule.loop,
+
+        (char) => punctuation.includes(char),
+        rule.done({type: "number", eat: false})
+    ],
+    word
+)
+
+let punc = rule(
+
+)
+
+let theOneRule = rule(
+    [
+        (char) => "'".includes(char),
+        rule(
+            [
+                (char) => "'" === char,
+                rule.done({ type: "string", eat: true })
+            ],
+            rule.loop
+        ),
+
+        (char) => "+-".includes(char),
+        rule(
+            [
+                (char) => ".".includes(char),
+                postDotNumber,
+  
+                (char) => "0123456789".includes(char),
+                preDotNumber,
+
+                (char) => punctuation.includes(char),
+                rule.done({ type: "word", eat: false })
+            ],
+            word
+        ),
+
+        (char) => ".".includes(char),
+        postDotNumber,
+
+        (char) => "0123456789".includes(char),
+        preDotNumber,
+
+        (char) => whitespace.includes(char),
+        rule.done({ type: "whitespace", eat: true }),
+
+        (char) => punctuation.includes(char),
+        rule.done({ type: "punctuation", eat: true }),
+    ],
+    word
+)
+
+const wrapper = (file) => {
+    let text = reader(file)
+
+    let lexer = new Lexer(theOneRule)
+    let tokens = lexer.tokenize(text)
+
+    let struc = []
+    let result = tokens.next()
+    while (!result.done) {
+        struc.push(result.value)
+        result = tokens.next()
+    }
+
+    return struc
+}
+
+wrapper.strip = (tokens) => tokens.filter(token => token.type !== "whitespace")
+
+module.exports = wrapper
