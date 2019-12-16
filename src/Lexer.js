@@ -1,13 +1,4 @@
-// Text reader
-
-function reader(string, pos=0) {
-    let done = pos >= string.length
-    return {
-        val: String.fromCharCode(string[pos]),
-        done: done,
-        next: !done ? reader(string, pos + 1) : false
-    }
-}
+const reader = require("./Reader")
 
 // Lexer syntax rules
 
@@ -16,7 +7,7 @@ const rule = function(conditions, elseCondition, eat=true) {
         let condition = elseCondition
         
         for (let i = 0; i < conditions.length; i += 2) {
-            if ( conditions[i](position.val) ) {
+            if ( conditions[i](position.value) ) {
                 condition = conditions[i + 1]
 
                 break
@@ -28,7 +19,7 @@ const rule = function(conditions, elseCondition, eat=true) {
         }
 
         if (condition.eat) {
-            return condition( position.next , body + position.val )
+            return condition( position.next , body + position.value )
         } else {
             return condition( position , body )
         }
@@ -77,7 +68,7 @@ class Lexer {
             }
         }
 
-        console.warn(`Failed to tokenize character: "${text.val}"`)
+        console.warn(`Failed to tokenize character: "${text.value}"`)
     }
 }
 
@@ -197,7 +188,7 @@ const wrapper = (file) => {
                 struc.type = "punctuation"
             }
         }
-        struc.push(result.value)
+        struc.push(result.valueue)
         result = tokens.next()
     }
 

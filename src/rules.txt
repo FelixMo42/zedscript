@@ -1,9 +1,0 @@
-value = 
-    @if :value :value :value
-    @let :word :value :value
-    
-    @fn *:word @: :value
-
-    :word
-    :string
-    :number
