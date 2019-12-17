@@ -25,9 +25,13 @@ class Ruleset {
                 if ( check(reader.value) ) {
 
                     if (rule == "loop") {
-                        return self(reader.next, this.steper.step(step, reader.value))
-                    } else {
+                        rule = self
+                    }
+
+                    if (rule.eat) {
                         return rule(reader.next, this.steper.step(step, reader.value))
+                    } else {
+                        return rule(reader, step)
                     }
                 }
             }
@@ -35,15 +39,21 @@ class Ruleset {
             console.warn("Failure!")
         }
 
+        self.eat = true
+
         return self
     }
 
-    done({type}) {
-        return (reader, step) => {
+    done({type, eat=false}) {
+        let rule = (reader, step) => {
             console.log( `"${step}" : ${type}` )
 
             return step
         }
+
+        rule.eat = eat
+
+        return rule
     }
 
     else() {
@@ -54,7 +64,7 @@ class Ruleset {
 /// test
 
 let whitespace = " \t\n"
-let punctuation = "" + whitespace
+let punctuation = "()" + whitespace
 
 let ruleset = new Ruleset({
     steper: {
@@ -62,7 +72,7 @@ let ruleset = new Ruleset({
         step: (step, value) => step + value
     }
 })
-let reader = Reader("+12.1a  ")
+let reader = Reader(")  +12.1a  ")
 
 let word = ruleset.rule(
     [
@@ -115,7 +125,7 @@ let baserule = ruleset.rule(
         ruleset.rule(
             [
                 (char) => "'" === char,
-                ruleset.done({ type: "string"})
+                ruleset.done({type: "string"})
             ],
             [
                 ruleset.else,
@@ -154,11 +164,11 @@ let baserule = ruleset.rule(
     ],
     [
         (char) => whitespace.includes(char),
-        ruleset.done({ type: "whitespace", eat: true }),
+        ruleset.done({type: "whitespace", eat: true}),
     ],
     [
         (char) => punctuation.includes(char),
-        ruleset.done({ type: "punctuation", eat: true }),
+        ruleset.done({type: "punctuation", eat: true}),
     ],
     [
         ruleset.else,
