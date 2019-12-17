@@ -1,4 +1,4 @@
-module.exports = (string, pos=0) => {
+const reader = module.exports = (string, pos=0) => {
     let done = pos >= string.length
     return {
         value: string[pos],

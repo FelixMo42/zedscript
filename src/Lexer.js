@@ -72,23 +72,6 @@ class Lexer {
     }
 }
 
-// test it
-
-let string = rule(
-    (char) => char == "'",
-    rule(
-        (char) => char !== "'",
-        rule.loop,
-        rule(
-            (char) => char === "'",
-            rule.done({ type: "string" }),
-            rule.fail,
-            false
-        )
-    ),
-    rule.fail
-)
-
 // number
 
 let whitespace = " \t\n"

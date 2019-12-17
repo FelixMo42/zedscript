@@ -1,6 +1,7 @@
 /// options
 
 const { Stack } = require("immutable")
+const Reader = require("./Reader")
 
 startStep = new Stack()
 
@@ -8,49 +9,161 @@ function step(stack, value) {
     return stack.push(value)
 }
 
+step.start = () => new Stack()
+
 /// logic
 
 class Ruleset {
     constructor({steper}) {
         this.steper = steper
+        this.loop = "loop"
     }
 
     rule(...conditions) {
-        return (reader, steper=this.steper.s) => {
+        let self = (reader, step=this.steper.start()) => {
             for (let [check, rule] of conditions) {
-                if ( check(position.val) ) {
-                    return rule(reader.next, step(startStep))
+                if ( check(reader.value) ) {
+
+                    if (rule == "loop") {
+                        return self(reader.next, this.steper.step(step, reader.value))
+                    } else {
+                        return rule(reader.next, this.steper.step(step, reader.value))
+                    }
                 }
             }
     
             console.warn("Failure!")
         }
-    }
-}
 
-function rule(...conditions) {
-    return (reader, steper=startStep) => {
-        for (let [check, rule] of conditions) {
-            if ( check(position.val) ) {
-                return rule(reader.next, step(startStep))
-            }
+        return self
+    }
+
+    done({type}) {
+        return (reader, step) => {
+            console.log( `"${step}" : ${type}` )
+
+            return step
         }
-
-        console.warn("Failure!")
     }
-}
 
-rule.done = ({}) => {
-    (reader) => {
-        return reader
+    else() {
+        return true
     }
 }
 
 /// test
 
-rule(
+let whitespace = " \t\n"
+let punctuation = "" + whitespace
+
+let ruleset = new Ruleset({
+    steper: {
+        start: () => "",
+        step: (step, value) => step + value
+    }
+})
+let reader = Reader("+12.1a  ")
+
+let word = ruleset.rule(
     [
-        (value) => value == "2",
-        rule.done({})
+        (char) => !punctuation.includes(char),
+        ruleset.loop
+    ],
+    [
+        ruleset.else,
+        ruleset.done({ type: "word" })
     ]
 )
+
+let postDotNumber = ruleset.rule(
+    [
+        (char) => "0123456789".includes(char),
+        ruleset.loop,
+    ],
+    [
+        (char) => punctuation.includes(char),
+        ruleset.done({type: "number"})
+    ],
+    [
+        ruleset.else,
+        word
+    ]
+)
+
+let preDotNumber = ruleset.rule(
+    [
+        (char) => ".".includes(char),
+        postDotNumber,
+    ],
+    [
+        (char) => "0123456789".includes(char),
+        ruleset.loop,
+    ],
+    [
+        (char) => punctuation.includes(char),
+        ruleset.done({type: "number"})
+    ],
+    [
+        ruleset.else,
+        word
+    ]
+)
+
+let baserule = ruleset.rule(
+    [
+        (char) => "'".includes(char),
+        ruleset.rule(
+            [
+                (char) => "'" === char,
+                ruleset.done({ type: "string"})
+            ],
+            [
+                ruleset.else,
+                ruleset.loop
+            ]
+        ),
+    ],
+    [
+        (char) => "+-".includes(char),
+        ruleset.rule(
+            [
+                (char) => ".".includes(char),
+                postDotNumber,
+            ],
+            [
+                (char) => "0123456789".includes(char),
+                preDotNumber,
+            ],
+            [
+                (char) => punctuation.includes(char),
+                ruleset.done({ type: "word"})
+            ],
+            [
+                ruleset.else,
+                word
+            ]
+        ),
+    ],
+    [
+        (char) => ".".includes(char),
+        postDotNumber,
+    ],
+    [
+        (char) => "0123456789".includes(char),
+        preDotNumber,
+    ],
+    [
+        (char) => whitespace.includes(char),
+        ruleset.done({ type: "whitespace", eat: true }),
+    ],
+    [
+        (char) => punctuation.includes(char),
+        ruleset.done({ type: "punctuation", eat: true }),
+    ],
+    [
+        ruleset.else,
+        word
+    ]
+)
+
+let token = baserule(reader)
