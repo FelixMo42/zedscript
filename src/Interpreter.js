@@ -53,6 +53,7 @@ const base_scope = new Map({
     "false": false,
 
     "print": (p) => {
+        console.log(p)
         return p
     },
 

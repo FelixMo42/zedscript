@@ -23,15 +23,16 @@ class Ruleset {
         let self = (reader, step=this.steper.start()) => {
             for (let [check, rule] of conditions) {
                 if ( check(reader.value) ) {
-
                     if (rule == "loop") {
                         rule = self
                     }
 
-                    if (rule.eat) {
-                        return rule(reader.next, this.steper.step(step, reader.value))
-                    } else {
-                        return rule(reader, step)
+                    let res = rule.eat ?
+                        rule(reader.next, this.steper.step(step, reader.value)) :
+                        rule(reader, step)
+                    
+                    if (res !== "fail") {
+                        return res
                     }
                 }
             }
@@ -56,6 +57,10 @@ class Ruleset {
         return rule
     }
 
+    fail({}) {
+        return "fail"
+    }
+
     else() {
         return true
     }
@@ -72,7 +77,7 @@ let ruleset = new Ruleset({
         step: (step, value) => step + value
     }
 })
-let reader = Reader(")  +12.1a  ")
+let reader = Reader("+12.1  ")
 
 let word = ruleset.rule(
     [
@@ -175,5 +180,23 @@ let baserule = ruleset.rule(
         word
     ]
 )
+
+ruleset.make(
+    [
+        (char) => "+-".includes(char), "continue", "fail",          // continue
+        (char) => "0123456789".includes(char),  "loop", "continue", // loop then continue
+        (char) => ".".includes(char), "continue", "fail",           // continue
+        (char) => "0123456789".includes(char), "continue", "done"   // loop then done
+    ],
+    [
+        (char) => true // !punctuation then loop else done
+    ],
+    [
+        (char) => char == " " // then done
+    ]
+)
+
+optinal
+multiple
 
 let token = baserule(reader)
