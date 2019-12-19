@@ -1,50 +1,5 @@
-const reader = require("./Reader")
-
-// Lexer syntax rules
-
-const rule = function(conditions, elseCondition, eat=true) {
-    const func = (position, body="") => {
-        let condition = elseCondition
-        
-        for (let i = 0; i < conditions.length; i += 2) {
-            if ( conditions[i](position.value) ) {
-                condition = conditions[i + 1]
-
-                break
-            }
-        }
-
-        if (condition == rule.loop) {
-            condition = func
-        }
-
-        if (condition.eat) {
-            return condition( position.next , body + position.value )
-        } else {
-            return condition( position , body )
-        }
-    }
-
-    // func.check = check
-
-    func.eat = eat
-
-    return Object.freeze(func)
-}
-
-function _(func, options) {
-    func.eat = options.eat
-
-    return func
-}
-
-rule.loop = Symbol("loop rule")
-rule.done = ({type, eat=true}) => _(
-    (char, body) => [char, {type, body}],
-    { eat: eat }
-)
-
-rule.fail = (char, body) => [char, { type: "fail", body: body }]
+const Reader  = require("./Reader")
+const Ruleset = require("./Rule")
 
 // Lexer
 
@@ -74,93 +29,146 @@ class Lexer {
 
 // number
 
-let whitespace = " \t\n"
-let punctuation = "():\'" + whitespace
 
-let word = rule(
+let whitespace = " \t\n"
+let punctuation = "()" + whitespace
+
+let ruleset = new Ruleset({
+    steper: {
+        start: () => "",
+        step: (step, value) => step + value
+    }
+})
+
+let word = ruleset.rule(
     [
         (char) => !punctuation.includes(char),
-        rule.loop
+        ruleset.loop
     ],
-    rule.done({ type: "word", eat: false })
+    [
+        ruleset.else,
+        ruleset.done({ type: "word" })
+    ]
 )
 
-let postDotNumber = rule(
+let postDotNumber = ruleset.rule(
     [
         (char) => "0123456789".includes(char),
-        rule.loop,
-
-        (char) => punctuation.includes(char),
-        rule.done({type: "number", eat: false})
+        ruleset.loop,
     ],
-    word
+    [
+        (char) => punctuation.includes(char),
+        ruleset.done({type: "number"})
+    ],
+    [
+        ruleset.else,
+        word
+    ]
 )
 
-let preDotNumber = rule(
+let preDotNumber = ruleset.rule(
     [
         (char) => ".".includes(char),
         postDotNumber,
-
-        (char) => "0123456789".includes(char),
-        rule.loop,
-
-        (char) => punctuation.includes(char),
-        rule.done({type: "number", eat: false})
     ],
-    word
+    [
+        (char) => "0123456789".includes(char),
+        ruleset.loop,
+    ],
+    [
+        (char) => punctuation.includes(char),
+        ruleset.done({type: "number"})
+    ],
+    [
+        ruleset.else,
+        word
+    ]
 )
 
-let punc = rule(
-
-)
-
-let theOneRule = rule(
+let baserule = ruleset.rule(
     [
         (char) => "'".includes(char),
-        rule(
+        ruleset.rule(
             [
                 (char) => "'" === char,
-                rule.done({ type: "string", eat: true })
+                ruleset.done({type: "string"})
             ],
-            rule.loop
+            [
+                ruleset.else,
+                ruleset.loop
+            ]
         ),
-
+    ],
+    [
         (char) => "+-".includes(char),
-        rule(
+        ruleset.rule(
             [
                 (char) => ".".includes(char),
                 postDotNumber,
-  
+            ],
+            [
                 (char) => "0123456789".includes(char),
                 preDotNumber,
-
-                (char) => punctuation.includes(char),
-                rule.done({ type: "word", eat: false })
             ],
-            word
+            [
+                (char) => punctuation.includes(char),
+                ruleset.done({ type: "word"})
+            ],
+            [
+                ruleset.else,
+                word
+            ]
         ),
-
+    ],
+    [
         (char) => ".".includes(char),
         postDotNumber,
-
+    ],
+    [
         (char) => "0123456789".includes(char),
         preDotNumber,
-
-        (char) => whitespace.includes(char),
-        rule.done({ type: "whitespace", eat: true }),
-
-        (char) => punctuation.includes(char),
-        rule.done({ type: "punctuation", eat: true }),
     ],
-    word
+    [
+        (char) => whitespace.includes(char),
+        ruleset.done({type: "whitespace", eat: true}),
+    ],
+    [
+        (char) => punctuation.includes(char),
+        ruleset.done({type: "punctuation", eat: true}),
+    ],
+    [
+        ruleset.else,
+        word
+    ]
 )
+
+// ruleset.make(
+//     [
+//         (char) => "+-".includes(char), "continue", "fail",          // continue
+//         (char) => "0123456789".includes(char),  "loop", "continue", // loop then continue
+//         (char) => ".".includes(char), "continue", "fail",           // continue
+//         (char) => "0123456789".includes(char), "continue", "done"   // loop then done
+//     ],
+//     [
+//         (char) => true // !punctuation then loop else done
+//     ],
+//     [
+//         (char) => char == " " // then done
+//     ]
+// )
+
+// optinal
+// multiple
+
+// let token = baserule(reader)
+
 
 const keywords = new Set(["fn", "let", "if"])
 
 const wrapper = (file) => {
-    let text = reader(file)
+    let text = Reader(file)
 
-    let lexer = new Lexer(theOneRule)
+    let lexer = new Lexer(baserule)
     let tokens = lexer.tokenize(text)
 
     let struc = []
