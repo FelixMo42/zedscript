@@ -1,19 +1,4 @@
-/// options
-
-const { Stack } = require("immutable")
-const Reader = require("./Reader")
-
-startStep = new Stack()
-
-function step(stack, value) {
-    return stack.push(value)
-}
-
-step.start = () => new Stack()
-
-/// logic
-
-class Ruleset {
+module.exports = class Ruleset {
     constructor({steper}) {
         this.steper = steper
         this.loop = "loop"
@@ -28,7 +13,7 @@ class Ruleset {
                     }
 
                     let res = rule.eat ?
-                        rule(reader.next, this.steper.step(step, reader.value)) :
+                        rule(reader.next(), this.steper.step(step, reader.value)) :
                         rule(reader, step)
                     
                     if (res !== "fail") {
@@ -47,9 +32,10 @@ class Ruleset {
 
     done({type, eat=false}) {
         let rule = (reader, step) => {
-            console.log( `"${step}" : ${type}` )
-
-            return step
+            return [reader, {
+                type: type,
+                body: step
+            }]
         }
 
         rule.eat = eat
@@ -65,5 +51,3 @@ class Ruleset {
         return true
     }
 }
-
-module.exports = Ruleset

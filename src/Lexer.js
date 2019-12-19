@@ -4,26 +4,22 @@ const Ruleset = require("./Rule")
 // Lexer
 
 class Lexer {
-    constructor(...rules) {
-        this.rules = rules
+    constructor(rule) {
+        this.rule = rule
     }
 
     *tokenize(text) {
         if (text.done) { return }
 
-        for (let rule of this.rules) {
-            let [next, token] = rule(text)
+        let [next, token] = this.rule(text)
 
-            if ( token.type != "fail" ) {
-                yield token
-
-                yield *this.tokenize(next)
-                
-                return
-            }
+        if ( token.type == "fail" ) {
+            console.warn(`Failed to tokenize character: "${token.body}"`)
+        } else {
+            yield token
         }
 
-        console.warn(`Failed to tokenize character: "${text.value}"`)
+        yield *this.tokenize(next)
     }
 }
 
@@ -41,6 +37,10 @@ let ruleset = new Ruleset({
 })
 
 let word = ruleset.rule(
+    [
+        (char) => char === 0,
+        ruleset.done({ type: "word" })
+    ],
     [
         (char) => !punctuation.includes(char),
         ruleset.loop
@@ -129,39 +129,35 @@ let baserule = ruleset.rule(
         preDotNumber,
     ],
     [
+        (char) => "@" == char,
+        ruleset.rule(
+            [
+                (char) => char === 0,
+                ruleset.done({ type: "key" })
+            ],
+            [
+                (char) => !punctuation.includes(char),
+                ruleset.loop
+            ],
+            [
+                ruleset.else,
+                ruleset.done({ type: "key" })
+            ]
+        )
+    ],
+    [
         (char) => whitespace.includes(char),
         ruleset.done({type: "whitespace", eat: true}),
     ],
     [
         (char) => punctuation.includes(char),
-        ruleset.done({type: "punctuation", eat: true}),
+        ruleset.done({type: "syntax", eat: true}),
     ],
     [
         ruleset.else,
         word
     ]
 )
-
-// ruleset.make(
-//     [
-//         (char) => "+-".includes(char), "continue", "fail",          // continue
-//         (char) => "0123456789".includes(char),  "loop", "continue", // loop then continue
-//         (char) => ".".includes(char), "continue", "fail",           // continue
-//         (char) => "0123456789".includes(char), "continue", "done"   // loop then done
-//     ],
-//     [
-//         (char) => true // !punctuation then loop else done
-//     ],
-//     [
-//         (char) => char == " " // then done
-//     ]
-// )
-
-// optinal
-// multiple
-
-// let token = baserule(reader)
-
 
 const keywords = new Set(["fn", "let", "if"])
 
@@ -176,10 +172,10 @@ const wrapper = (file) => {
     while (!result.done) {
         if (struc.type == "word") {
             if (keywords.has( struc.body )) {
-                struc.type = "punctuation"
+                struc.type = "syntax"
             }
         }
-        struc.push(result.valueue)
+        struc.push(result.value)
         result = tokens.next()
     }
 

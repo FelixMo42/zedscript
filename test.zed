@@ -1,2 +1,4 @@
 let add fn a b : (+ a b)
-    if (= 1 1) 4 5
+    (add @a 1 @b 2)
+
+
