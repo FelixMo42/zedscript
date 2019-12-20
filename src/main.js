@@ -20,7 +20,7 @@ async function runFile(filePath) {
 
     await save(tokens, "tokens")
 
-    // let ast = Parser(tokens)
+    let ast = Parser(tokens)
 
     // await save(ast, "ast")
 

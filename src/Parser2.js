@@ -49,24 +49,22 @@ const defineRules = (types) => ruleset.rule( ...rules.map(defineRule) )
 
 let rules = {
     "value": defineRules([
-        "@let :word :value :value",
-        "@fn :paramater @: :value",
+        "@let word value value",
+        "@fn paramater @: value",
         
-        ":word",
+        "word",
 
-        ":number",
-        ":string"
+        "number",
+        "string"
     ]),
 
     "paramater": defineRules([
-        ":key :word",
-        ":word"
+        "key word",
+        "word"
     ])
 }
 
 console.log(rules)
-
-// console.log(rules)
 
 function cheackrule(rule, token) {
     if (rule.type == "syntax" && token.type == "syntax") {

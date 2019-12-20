@@ -43,7 +43,7 @@ module.exports = class Ruleset {
         return rule
     }
 
-    fail({}) {
+    fail() {
         return "fail"
     }
 
