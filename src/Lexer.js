@@ -23,18 +23,106 @@ class Lexer {
     }
 }
 
+Lexer.condense = (tokenGenerator) => {
+    let tokens = []
+    let token = tokenGenerator.next()
+
+    while (!token.done) {
+        tokens.push(token.value)
+        token = tokenGenerator.next()
+    }
+
+    return tokens
+}
+
+Lexer.strip = (tokens) => tokens.filter(token => token.type !== "whitespace")
+
+Lexer.ruleset = new Ruleset({ steper: {
+    start: () => "",
+    step: (step, value) => step + value
+} })
+
+// Lexer Lexer
+
+function pw(string, value) {
+    console.log(string)
+    return value
+}
+
+let b = (() => {
+    const ruleset = Lexer.ruleset
+
+    const punctuation = "+?#() "
+
+    const baseRule = ruleset.rule(
+        [
+            (char) => char == " ",
+            ruleset.done({type: "whitespace", eat: true})
+        ],
+        [
+            (char) => char == "#",
+            ruleset.rule(
+                [
+                    (char) => char === 0,
+                    ruleset.fail
+                ],
+                [
+                    ruleset.else,
+                    ruleset.done({ type: "character", eat: true })
+                ]
+            )
+        ],
+        [
+            (char) => punctuation.includes(char),
+            ruleset.done({type: "punctuation", eat: true})
+        ],
+        [
+            (char) => char !== 0,
+            ruleset.rule(
+                [
+                    (char) => !punctuation.includes(char) && char !== 0,
+                    ruleset.loop
+                ],
+                [
+                    ruleset.else,
+                    ruleset.done({ type: "word" })
+                ]
+            )
+        ],
+        [
+            ruleset.else,
+            ruleset.fail
+        ]
+    )
+
+    let lexer = new Lexer( baseRule )
+
+    let tokens = 
+        Lexer.strip(
+            Lexer.condense(
+                lexer.tokenize( Reader(Buffer.from("(#1 to #2)+?", 'utf8')) )
+            )
+        )
+    /*
+        character
+            ## any
+        
+        word
+            (not ## or #+ or #- or #( or #))+
+        
+        
+    */
+
+    // console.log(tokens)
+})()
+
 // number
 
 
 let whitespace = " \t\n"
 let punctuation = "()" + whitespace
 
-let ruleset = new Ruleset({
-    steper: {
-        start: () => "",
-        step: (step, value) => step + value
-    }
-})
+let ruleset = Lexer.ruleset
 
 let word = ruleset.rule(
     [
@@ -182,6 +270,8 @@ const wrapper = (file) => {
     return struc
 }
 
-wrapper.strip = (tokens) => tokens.filter(token => token.type !== "whitespace")
+
+
+wrapper.strip = Lexer.strip
 
 module.exports = wrapper
