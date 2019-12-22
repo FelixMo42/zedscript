@@ -162,7 +162,7 @@ let baserule = ruleset.rule(
 const keywords = new Set(["fn", "let", "if"])
 
 const wrapper = (file) => {
-    let text = Reader(file)
+    let text = Reader.buffer(file)
 
     let lexer = new Lexer(baserule)
     let tokens = lexer.tokenize(text)

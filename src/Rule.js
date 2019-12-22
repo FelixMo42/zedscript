@@ -22,7 +22,7 @@ module.exports = class Ruleset {
                 }
             }
     
-            console.warn("Failure!")
+            console.warn("Failure @", reader.value)//, step)
         }
 
         self.eat = true

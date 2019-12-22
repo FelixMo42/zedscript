@@ -1,11 +1,15 @@
-let Ruleset  = require("./Rule")
+let Ruleset   = require("./Rule")
+let Reader    = require("./Reader")
 let { Stack } = require("immutable")
+
+let tokenTypes = new Set(["number", "string", "word"])
 
 let tokens = function *() {
     for (token of [
         {type:"syntax", body:"let"},
         {type:"word", body:"x"},
-        {type:"number", body:"5"}
+        {type:"number", body:"5"},
+        {type:"word", body:"x"}
     ]) {
         yield token
     }
@@ -19,33 +23,45 @@ const ruleset = new Ruleset({
 })
 
 function cheacktoken(rule, token) {
+    console.log("cheacking:", rule, "=", token)
+
     if (rule.type == "syntax" && token.type == "syntax") {
         if (rule.body == token.body) {
             return true
         }
-    }
-
-    if (rule.type == "block") {
-        if (rule.body == token.type) {
+    } else if (rule.type == "block") {
+        if (tokenTypes.has(rule.body) && rule.body == token.type) {
             return true
+        } else {
+            parse()
         }
     }
 
     return false
 }
 
-const defineRule = (rule) => ruleset.rule(
-    [
-        (token) => cheacktoken(rule[0], token),
-        defineRule()
-    ],
-    [
-        ruleset.else,
-        ruleset.fail
-    ]
-)
+const defineRule = (rule, index) =>
+    rule.length == index ? 
+        ruleset.done({type: "bla"}) :
+        ruleset.rule(
+            [
+                (token) => cheacktoken(rule[index], token),
+                defineRule(rule, index + 1)
+            ],
+            [ ruleset.else, ruleset.fail ]
+        )
 
-const defineRules = (types) => ruleset.rule( ...rules.map(defineRule) )
+const defineRules = (rules) => ruleset.rule( ...rules.map((rule) => {
+    let rules = rule.split(" ").map((text) => ({
+        type: text[0] == "@" ? "syntax" : "block",
+        body: text.slice(1)
+    }))
+
+    return [
+        (token) => cheacktoken(rules[0], token),
+        defineRule(rules, 1)
+    ]
+}), [ruleset.else, ruleset.fail])
 
 let rules = {
     "value": defineRules([
@@ -64,39 +80,14 @@ let rules = {
     ])
 }
 
-console.log(rules)
+function parse(tokens, target) {
+    let i = 0
 
-// console.log(rules)
+    let reader = Reader.generator(tokens)
 
-function cheackrule(rule, token) {
-    if (rule.type == "syntax" && token.type == "syntax") {
-        if (rule.body == token.body) {
-            return true
-        }
-    }
-
-    if (rule.type == "block") {
-        if (rule.body == token.type) {
-            return true
-        }
-    }
-
-    return false
+    console.log(
+        rules[target](reader)
+    )
 }
 
-// function parse(tokens, target) {
-//     let i = 0
-
-//     let token = tokens.next().value
-
-//     for (let rule of rules[target]) {
-//         // console.log(rule)
-//         if ( cheackrule(rule[0], token) ) {
-//             console.log(rule)
-//         }
-//     }
-
-//     console.log("Failed to tokenize: ", token)
-// }
-
-// parse(tokens, "value")
+parse(tokens, "value")
