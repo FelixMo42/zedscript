@@ -5,11 +5,6 @@ let Ruleset = ({tokenize = () => ({})}) => {
     Rule.loop = 1
     Rule.fail = 2
 
-    makeToken = (start, length) => ({
-        ...tokenize(rule, data, start, length),
-        start: start, end: start + length, length: length
-    })
-
     Rule.match = (rule, data, start) => {
         let length    = 0
         let ruleIndex = 0
@@ -46,7 +41,8 @@ let Ruleset = ({tokenize = () => ({})}) => {
             // this is not a match, return 0 or the callback
             if (outcome == Rule.fail) {
                 return {
-                    start: start, end: start + length, length: length
+                    ...tokenize(rule, data, start, 0),
+                    start: start, end: start, length: 0
                 }
             }
         }
