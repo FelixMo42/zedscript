@@ -1,53 +1,69 @@
-module.exports = class Ruleset {
-    constructor({steper}) {
-        this.steper = steper
-        this.loop = "loop"
-    }
+let Ruleset = ({tokenize = () => ({})}) => {
+    const Rule = {}
 
-    rule(...conditions) {
-        let self = (reader, step=this.steper.start()) => {
-            for (let [check, rule] of conditions) {
-                if ( check(reader.value) ) {
-                    if (rule == "loop") {
-                        rule = self
-                    }
+    Rule.next = 0
+    Rule.loop = 1
+    Rule.fail = 2
 
-                    let res = rule.eat ?
-                        rule(reader.next(), this.steper.step(step, reader.value)) :
-                        rule(reader, step)
-                    
-                    if (res !== "fail") {
-                        return res
+    makeToken = (start, length) => ({
+        ...tokenize(rule, data, start, length),
+        start: start, end: start + length, length: length
+    })
+
+    Rule.match = (rule, data, start) => {
+        let length    = 0
+        let ruleIndex = 0
+
+        while (true) {
+            // does the char match the rule?
+            let match = rule[ruleIndex].rule( data[start + length] )
+
+            // only move on to the next char if the rule matchs
+            if (match) {
+                length += 1
+            }
+
+            // what should we do next?
+            let outcome = match ? rule[ruleIndex].then : rule[ruleIndex].else
+
+            // lets move on to the next rule
+            if (outcome == Rule.next) {
+                ruleIndex += 1
+
+                // weve reached the end, were done.
+                // return the length or the callback
+                if (ruleIndex == rule.length) {
+                    return {
+                        ...tokenize(rule, data, start, length),
+                        start: start, end: start + length, length: length
                     }
                 }
             }
-    
-            console.warn("Failure @", reader.value)//, step)
+
+            // lets loop around and do the same thing again
+            if (outcome == Rule.loop) {}
+
+            // this is not a match, return 0 or the callback
+            if (outcome == Rule.fail) {
+                return {
+                    start: start, end: start + length, length: length
+                }
+            }
         }
-
-        self.eat = true
-
-        return self
     }
 
-    done({type, eat=false}) {
-        let rule = (reader, step) => {
-            return [reader, {
-                type: type,
-                body: step
-            }]
-        }
+    Rule.longest = (matchs) => matchs.reduce(
+        (longest, match) => match.length > longest.length ? match : longest
+    )
 
-        rule.eat = eat
+    Rule.longestMatch = (rules, data, start) => Rule.longest(
+        rules.map(rule => Rule.match(rule, data, start))
+    )
 
-        return rule
-    }
+    return Rule
+}
 
-    fail() {
-        return "fail"
-    }
-
-    else() {
-        return true
-    }
+module.exports = {
+    ...Ruleset({}),
+    Ruleset
 }
