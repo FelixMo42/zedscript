@@ -52,7 +52,7 @@ function pw(string, value) {
 let b = (() => {
     const ruleset = Lexer.ruleset
 
-    const punctuation = "+?#() "
+    const punctuation = "+?#() \n"
 
     const baseRule = ruleset.rule(
         [
@@ -119,159 +119,159 @@ let b = (() => {
 // number
 
 
-let whitespace = " \t\n"
-let punctuation = "()" + whitespace
+// let whitespace = " \t\n"
+// let punctuation = "()" + whitespace
 
-let ruleset = Lexer.ruleset
+// let ruleset = Lexer.ruleset
 
-let word = ruleset.rule(
-    [
-        (char) => char === 0,
-        ruleset.done({ type: "word" })
-    ],
-    [
-        (char) => !punctuation.includes(char),
-        ruleset.loop
-    ],
-    [
-        ruleset.else,
-        ruleset.done({ type: "word" })
-    ]
-)
+// let word = ruleset.rule(
+//     [
+//         (char) => char === 0,
+//         ruleset.done({ type: "word" })
+//     ],
+//     [
+//         (char) => !punctuation.includes(char),
+//         ruleset.loop
+//     ],
+//     [
+//         ruleset.else,
+//         ruleset.done({ type: "word" })
+//     ]
+// )
 
-let postDotNumber = ruleset.rule(
-    [
-        (char) => "0123456789".includes(char),
-        ruleset.loop,
-    ],
-    [
-        (char) => punctuation.includes(char),
-        ruleset.done({type: "number"})
-    ],
-    [
-        ruleset.else,
-        word
-    ]
-)
+// let postDotNumber = ruleset.rule(
+//     [
+//         (char) => "0123456789".includes(char),
+//         ruleset.loop,
+//     ],
+//     [
+//         (char) => punctuation.includes(char),
+//         ruleset.done({type: "number"})
+//     ],
+//     [
+//         ruleset.else,
+//         word
+//     ]
+// )
 
-let preDotNumber = ruleset.rule(
-    [
-        (char) => ".".includes(char),
-        postDotNumber,
-    ],
-    [
-        (char) => "0123456789".includes(char),
-        ruleset.loop,
-    ],
-    [
-        (char) => punctuation.includes(char),
-        ruleset.done({type: "number"})
-    ],
-    [
-        ruleset.else,
-        word
-    ]
-)
+// let preDotNumber = ruleset.rule(
+//     [
+//         (char) => ".".includes(char),
+//         postDotNumber,
+//     ],
+//     [
+//         (char) => "0123456789".includes(char),
+//         ruleset.loop,
+//     ],
+//     [
+//         (char) => punctuation.includes(char),
+//         ruleset.done({type: "number"})
+//     ],
+//     [
+//         ruleset.else,
+//         word
+//     ]
+// )
 
-let baserule = ruleset.rule(
-    [
-        (char) => "'".includes(char),
-        ruleset.rule(
-            [
-                (char) => "'" === char,
-                ruleset.done({type: "string"})
-            ],
-            [
-                ruleset.else,
-                ruleset.loop
-            ]
-        ),
-    ],
-    [
-        (char) => "+-".includes(char),
-        ruleset.rule(
-            [
-                (char) => ".".includes(char),
-                postDotNumber,
-            ],
-            [
-                (char) => "0123456789".includes(char),
-                preDotNumber,
-            ],
-            [
-                (char) => punctuation.includes(char),
-                ruleset.done({ type: "word"})
-            ],
-            [
-                ruleset.else,
-                word
-            ]
-        ),
-    ],
-    [
-        (char) => ".".includes(char),
-        postDotNumber,
-    ],
-    [
-        (char) => "0123456789".includes(char),
-        preDotNumber,
-    ],
-    [
-        (char) => "@" == char,
-        ruleset.rule(
-            [
-                (char) => char === 0,
-                ruleset.done({ type: "key" })
-            ],
-            [
-                (char) => !punctuation.includes(char),
-                ruleset.loop
-            ],
-            [
-                ruleset.else,
-                ruleset.done({ type: "key" })
-            ]
-        )
-    ],
-    [
-        (char) => whitespace.includes(char),
-        ruleset.done({type: "whitespace", eat: true}),
-    ],
-    [
-        (char) => punctuation.includes(char),
-        ruleset.done({type: "syntax", eat: true}),
-    ],
-    [
-        ruleset.else,
-        word
-    ]
-)
+// let baserule = ruleset.rule(
+//     [
+//         (char) => "'".includes(char),
+//         ruleset.rule(
+//             [
+//                 (char) => "'" === char,
+//                 ruleset.done({type: "string"})
+//             ],
+//             [
+//                 ruleset.else,
+//                 ruleset.loop
+//             ]
+//         ),
+//     ],
+//     [
+//         (char) => "+-".includes(char),
+//         ruleset.rule(
+//             [
+//                 (char) => ".".includes(char),
+//                 postDotNumber,
+//             ],
+//             [
+//                 (char) => "0123456789".includes(char),
+//                 preDotNumber,
+//             ],
+//             [
+//                 (char) => punctuation.includes(char),
+//                 ruleset.done({ type: "word"})
+//             ],
+//             [
+//                 ruleset.else,
+//                 word
+//             ]
+//         ),
+//     ],
+//     [
+//         (char) => ".".includes(char),
+//         postDotNumber,
+//     ],
+//     [
+//         (char) => "0123456789".includes(char),
+//         preDotNumber,
+//     ],
+//     [
+//         (char) => "@" == char,
+//         ruleset.rule(
+//             [
+//                 (char) => char === 0,
+//                 ruleset.done({ type: "key" })
+//             ],
+//             [
+//                 (char) => !punctuation.includes(char),
+//                 ruleset.loop
+//             ],
+//             [
+//                 ruleset.else,
+//                 ruleset.done({ type: "key" })
+//             ]
+//         )
+//     ],
+//     [
+//         (char) => whitespace.includes(char),
+//         ruleset.done({type: "whitespace", eat: true}),
+//     ],
+//     [
+//         (char) => punctuation.includes(char),
+//         ruleset.done({type: "syntax", eat: true}),
+//     ],
+//     [
+//         ruleset.else,
+//         word
+//     ]
+// )
 
-const keywords = new Set(["fn", "let", "if"])
+// const keywords = new Set(["fn", "let", "if"])
 
-const wrapper = (file) => {
-    let text = Reader.buffer(file)
+// const wrapper = (file) => {
+//     let text = Reader.buffer(file)
 
-    let lexer = new Lexer(baserule)
-    let tokens = lexer.tokenize(text)
+//     let lexer = new Lexer(baserule)
+//     let tokens = lexer.tokenize(text)
 
-    let struc = []
-    let result = tokens.next()
-    while (!result.done) {
-        if (struc.type == "word") {
-            if (keywords.has( struc.body )) {
-                struc.type = "syntax"
-            }
-        }
-        struc.push(result.value)
-        result = tokens.next()
-    }
+//     let struc = []
+//     let result = tokens.next()
+//     while (!result.done) {
+//         if (struc.type == "word") {
+//             if (keywords.has( struc.body )) {
+//                 struc.type = "syntax"
+//             }
+//         }
+//         struc.push(result.value)
+//         result = tokens.next()
+//     }
 
-    return struc
-}
+//     return struc
+// }
 
 
 
-wrapper.strip = Lexer.strip
+// wrapper.strip = Lexer.strip
 
-module.exports = wrapper
+// module.exports = wrapper
