@@ -1,16 +1,27 @@
 const Rule = require("./Rule")
 
 const Parser = module.exports = (types, baseType) => { 
-    let parse = ({type, value}, tokens, index) =>
-        value != undefined ?
-            tokens[index].type == type && tokens[index].value == value ?
-                {...tokens[index], length: 1} :
-                {length: 0} :
-            tokens[index].type == type ?
-                {...tokens[index], length: 1} :
-                type in types ?
-                    matcher.longestMatch(types[type], tokens, index) :
-                    { length: 0 }
+    let parse = ({type, value}, tokens, index) => {
+        if (value != undefined) {
+            if (tokens[index].type == type && tokens[index].value == value) {
+                return {
+                    value: tokens[index],
+                    length: 1
+                }
+            } else {
+                return { length: 0 }
+            }
+        }
+
+        if ( tokens[index].type == type ) {
+            return {
+                value: tokens[index],
+                length: 1
+            }
+        } else {
+            return matcher.longestMatch(types[type], tokens, index, true)
+        }    
+    }
 
     let matcher = Rule.Matcher({
         compare: parse,
@@ -34,12 +45,8 @@ const Parser = module.exports = (types, baseType) => {
 
             return value
         },
-        finish: ({value, length}) => {
-            value.length = length
-            return value
-        },
         failure: {length: 0}
     })
 
-    return (tokens) => parse({type: baseType}, tokens, 0)
+    return (tokens) => parse({type: baseType}, tokens, 0).value
 }

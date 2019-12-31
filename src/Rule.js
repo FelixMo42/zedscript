@@ -32,13 +32,11 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
             // skip over whats allready been matched
             length += match.length
 
-            // console.log(rule[0].type, match)
-
             // update the value if there is an update function
             if (succses && update != undefined) {
                 value = update({
                     value  : value,
-                    match  : match,
+                    match  : match.value,
                     rule   : rule[ruleIndex],
                     data   : data,
                     length : length
@@ -83,7 +81,7 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
 
     Matcher.match = (rule, data, start) => match(rule, data, start).value
 
-    Matcher.longestMatch = (rules, data, start) => {
+    Matcher.longestMatch = (rules, data, start, unwrap) => {
         // get all the matchs with the given rules
         let matchs = rules.map(rule => match(rule, data, start))
 
@@ -99,7 +97,7 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
         }
 
         // return the value of the maximum element
-        return max.value
+        return unwrap ? max : max.value
     }
 
     return Matcher

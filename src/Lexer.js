@@ -6,12 +6,12 @@ const Lexer = module.exports = (rules) => (file) => {
     let tokens = []
 
     while (index < fileLength) {
-        let token = Lexer.matcher.longestMatch(rules, file, index)
+        let token = Lexer.matcher.longestMatch(rules, file, index, true)
 
         if (token.length == 0) {
             index += 1
         } else {
-            tokens.push(token)
+            tokens.push(token.value)
             index += token.length
         }
     }
@@ -31,8 +31,7 @@ let compare = (rule, char) =>
 Lexer.matcher = Rule.Matcher({
     finish: ({rule, data: file, start, length}) => ({
         type: rule[0].type,
-        value: file.substring(start, start + length),
-        length: length
+        value: file.substring(start, start + length)
     }),
     failure: {length: 0},
     compare: (rule, file, index) => compare(rule, file[index])
