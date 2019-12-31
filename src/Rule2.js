@@ -1,4 +1,11 @@
-let Ruleset = ({tokenize, compare}) => {
+let defaultSteper = {
+    start: (rule) => {},
+    next: (step, match) => {},
+    final: ({step, start, length, data}) => {},
+    fail: ({}) => {}
+}
+
+let Ruleset = ({compare, steper}) => {
     const Rule = {}
 
     Rule.next = 0
@@ -8,18 +15,19 @@ let Ruleset = ({tokenize, compare}) => {
     Rule.match = (rule, data, start) => {
         let length    = 0
         let ruleIndex = 0
-        let maxLength = data.length - start
+
+        let step = steper.start(rule)
 
         while (true) {
-            // does the char match the rule?
-            let match =
-                length < maxLength &&
-                compare(rule[ruleIndex], data, start + length)
+            // does the data match the rule?
+            let match = compare(rule[ruleIndex].rule, data, start + length)
 
-            // only move on to the next char if the rule matchs
+            // only move on to the next position if the rule matchs
             if (match) {
                 length += 1
             }
+
+            step = steper.next({step, match})
 
             // what should we do next?
             let outcome = match ? rule[ruleIndex].then : rule[ruleIndex].else
@@ -31,27 +39,16 @@ let Ruleset = ({tokenize, compare}) => {
                 // weve reached the end, were done.
                 // return the length or the callback
                 if (ruleIndex == rule.length) {
-                    return {
-                        ...tokenize(rule, data, start, length),
-                        start: start, end: start + length, length: length
-                    }
+                    return steper.final(step)
                 }
             }
 
             // lets loop around and do the same thing again
-            else if (outcome == Rule.loop) {}
+            if (outcome == Rule.loop) {}
 
             // this is not a match, return 0 or the callback
-            else if (outcome == Rule.fail) {
-                return {
-                    ...tokenize(rule, data, start, 0),
-                    start: start, end: start, length: 0
-                }
-            }
-
-            else {
-                console.log("invalide outcome type in", rule)
-                return
+            if (outcome == Rule.fail) {
+                return steper.fail(step)
             }
         }
     }

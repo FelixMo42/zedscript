@@ -1,127 +1,87 @@
-function Parser(tokens) {
-    let position = 0
+const Rule = require("./Rule")
 
-    let keywords = new Map()
+const Parser = module.exports = (types, start) => {
+    let compare = ({type, value}, tokens, index) =>
+        value != undefined ?
+            tokens[index].type == type && tokens[index].value == value ?
+                {...tokens[index], length: 1} :
+                {length: 0} :
+        tokens[index].type == type ?
+            {...tokens[index], length: 1} :
+            parse(type, tokens, index)
+    
+    let updateToken = ({rule, token, match, ruleIndex}) => {
+        if ("as" in rule[ruleIndex]) {
+            let index = rule[ruleIndex].as
 
-    keywords.set("(", () => {
-        let fn = next()
-        let params = []
+            if (rule[ruleIndex].next == Rule.loop) {
+                if (index in token) {
+                    token[index].push(match)
+                } else {
+                    token[index] = [match]
+                }
+            } else {
+                token[index] = match
+            }
+        }
+    }
 
+    let matchRule = (rule, data, start) => {
+        let length    = 0
+        let ruleIndex = 0
+        let token     = {
+            type: rule[0].type
+        }
+    
         while (true) {
-            let token = peak()
-
-            if (token.type == "punctuation", token.value == ")") {
-                skip()
-                break
+            // does the char match the rule?
+            let match = compare(rule[ruleIndex].rule, data, start + length)
+    
+            let success = match.length != 0
+    
+            // only move on to the next position if the rule matchs
+            if (success) {
+                length += match.length
             }
 
-            params.push( eat() )
-        }
+            // update the token
+            updateToken({rule, token, ruleIndex, match})
+    
+            // what should we do next?
+            let outcome = success ? rule[ruleIndex].then : rule[ruleIndex].else
+    
+            // lets move on to the next rule
+            if (outcome == Rule.next) {
+                ruleIndex += 1
+    
+                // weve reached the end, were done.
+                // return the length or the callback
+                if (ruleIndex == rule.length) {                    
+                    token.length = length
 
-        return {
-            "type": "call",
-            "fn": fn,
-            "params": params
-        }
-    })
-
-    keywords.set("fn", () => {
-        let params = []
-
-        while (true) {
-            let token = peak()
-
-            if (token.type == "punctuation" && token.value == ":") {
-                skip()
-                break
+                    return token
+                }
             }
-
-            params.push( eat() )
-        }
-
-        return {
-            type: "function",
-            params: params,
-            block: eat()
-        }
-    })
     
-
-
+            // lets loop around and do the same thing again
+            if (outcome == Rule.loop) {}
     
-    keywords.set("let", () => ({
-        type: "decleration",
-        name: eat(),
-        value: eat(),
-        block: eat()
-    }) )
-
-    keywords.set("if", () => ({
-        type: "if",
-        condition: eat(),
-        then: eat(),
-        else: eat()
-    }))
-
-    keywords.set("|", () => {
-        let values = []
-
-        while (true) {
-            let token = peak()
-
-            if (token.type == "punctuation" && token.value == "|") {
-                skip()
-                break
+            // this is not a match, return a token of length 0
+            if (outcome == Rule.fail) {
+                return {
+                    start: start, end: start, length: 0
+                }
             }
-
-            values.push( eat() )
         }
-
-        return {
-            "type": "tuple",
-            "values": values
-        }
-    })
-
-    /* genaric usefull functions */
-
-    function next() {
-        let token = peak()
-        skip()
-        return token
     }
 
-    function peak() {
-        return tokens[position]
-    }
+    let parse = (type, tokens) => 
+        types[type]
+            .map(rule => matchRule(rule, tokens, 0))
+            .reduce(
+                (longest, match) =>
+                    match.length > longest.length ? match : longest
+            )
 
-    function skip() {
-        position += 1
-    }
-
-    function eat() {
-        let token = next()
-
-        if (token.type == "number") {
-            return token
-        }
-
-        if (token.type == "string") {
-            return token
-        }
-
-        if (token.type == "identifier") {
-            return token
-        }
-
-        if (keywords.has(token.value)) {
-            return keywords.get(token.value)(token)
-        }
-
-        console.warn("Failed to parse token: ", token)
-    }
-    
-    return eat()
+    return (tokens) => parse(start, tokens)
 }
-
-module.exports = Parser
