@@ -6,7 +6,7 @@ const Lexer = module.exports = (rules) => (file) => {
     let tokens = []
 
     while (index < fileLength) {
-        let token = Lexer.ruleset.longestMatch(rules, file, index)
+        let token = Lexer.matcher.longestMatch(rules, file, index)
 
         if (token.length == 0) {
             index += 1
@@ -20,20 +20,22 @@ const Lexer = module.exports = (rules) => (file) => {
 }
 
 let compare = (rule, char) =>
-    rule.type == "range" ? char >= rule.start.value && char <= rule.end.value :
+    rule.type == "range" ? rule.start.value <= char && char <= rule.end.value :
     rule.type == "set"   ? rule.values
                             .map(value => compare(value, char))
                             .some(e => e) :
-    rule.type == "not"  ? !compare(rule.value, char) :
-    rule.type == "char" ? char == rule.value :
+    rule.type == "not"   ? !compare(rule.value, char) :
+    rule.type == "char"  ? char == rule.value :
         Error("invalide rule type")
 
-Lexer.ruleset = Rule.Ruleset({
-    tokenize: (rule, file, start, length) => ({
+Lexer.matcher = Rule.Matcher({
+    finish: ({rule, data: file, start, length}) => ({
         type: rule[0].type,
-        value: file.substring(start, start + length)
+        value: file.substring(start, start + length),
+        length: length
     }),
-    compare: (rule, file, index) => compare(rule.rule, file[index])
+    failure: {length: 0},
+    compare: (rule, file, index) => compare(rule, file[index])
 })
 
 Lexer.singlton = (type, char) => ({

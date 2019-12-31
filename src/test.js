@@ -1,3 +1,6 @@
+'use strict'
+
+const Rule   = require("./Rule")
 const Lexer  = require("./Lexer")
 const Parser = require("./Parser")
 
@@ -10,20 +13,23 @@ let lexer = Lexer([
             type: "char",
 
             rule: {type: "char", value: "#"},
-            then: Lexer.ruleset.next,
-            else: Lexer.ruleset.fail,
+            then: Rule.next,
+            else: Rule.fail
         },
         {
-            rule: {type: "not", value: {
-                type: "set",
-                values: [
-                    {type: "char", value: " "},
-                    {type: "char", value: "\t"},
-                    {type: "char", value: "\n"}
-                ]
-            }},
-            then: Lexer.ruleset.next,
-            else: Lexer.ruleset.fail,
+            rule: {
+                type: "not",
+                value: {
+                    type: "set",
+                    values: [
+                        {type: "char", value: " "},
+                        {type: "char", value: "\t"},
+                        {type: "char", value: "\n"}
+                    ]
+                }
+            },
+            then: Rule.next,
+            else: Rule.fail
         }
     ],
     [
@@ -41,8 +47,8 @@ let lexer = Lexer([
                     {type: "char", value: "#"},
                 ]
             }},
-            then: Lexer.ruleset.loop,
-            else: Lexer.ruleset.next,
+            then: Rule.loop,
+            else: Rule.next
         }
     ]
 ])
@@ -54,32 +60,32 @@ let parser = Parser({
                 type: "range",
 
                 rule: {type: "open_paren"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail
+                then: Rule.next,
+                else: Rule.fail
             },
             {
                 rule: {type: "char"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail,
+                then: Rule.next,
+                else: Rule.fail,
 
                 as: "start"
             },
             {
                 rule: {type: "word", value: "to"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail
+                then: Rule.next,
+                else: Rule.fail
             },
             {
                 rule: {type: "char"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail,
+                then: Rule.next,
+                else: Rule.fail,
 
                 as: "end"
             },
             {
                 rule: {type: "close_paren"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail
+                then: Rule.next,
+                else: Rule.fail
             }
         ]
     ],
@@ -89,15 +95,15 @@ let parser = Parser({
                 type: "rule",
 
                 rule: {type: "set"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail,
+                then: Rule.next,
+                else: Rule.fail,
 
                 as: "rule"
             },
             {
                 rule: {type: "modifier"},
-                then: Lexer.ruleset.next,
-                else: Lexer.ruleset.fail,
+                then: Rule.next,
+                else: Rule.fail,
 
                 as: "modifier"
             }
