@@ -143,5 +143,13 @@ Rule.make = (rule, pattern) => {
                     else: Rule.next,
                 }    
             ]
+        case "-":
+            return [
+                {
+                    rule: rule,
+                    then: Rule.next,
+                    else: Rule.fail,
+                }    
+            ]
     }
 }

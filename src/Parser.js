@@ -17,9 +17,13 @@ const Parser = module.exports = (types, callbacks, baseType) => {
 
         if ( tokens[index].type == type ) {
             return eatToken(tokens, index)
-        } else {
+        }
+        
+        if (type in types) {
             return matcher.longestMatch(types[type], tokens, index, true)
-        }    
+        }
+
+        return { length: 0 }
     }
 
     let eatMatch = (match) => match.type in callbacks ?
