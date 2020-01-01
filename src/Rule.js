@@ -9,6 +9,8 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
         // the length of the match
         let length = 0
 
+        let maxLength = data.length - start
+
         // how far along we are in the rule
         let ruleIndex = 0
 
@@ -20,7 +22,8 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
 
         while (true) {
             // get a match on the data
-            let match = compare(rule[ruleIndex].rule, data, start + length)
+            let match = length >= maxLength ? false :
+                compare(rule[ruleIndex].rule, data, start + length)
 
             // if return true or false then map to a lengthed value
             if (match == true ) { match = {length: 1} }
@@ -101,4 +104,44 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
     }
 
     return Matcher
+}
+
+Rule.patterns = {
+    "*": "*",
+    "+": "+",
+    "?": "?"
+}
+
+Rule.make = (rule, pattern) => {
+    switch (pattern) {
+        case "*":
+            return [
+                {
+                    rule: rule,
+                    then: Rule.loop,
+                    else: Rule.next,
+                }
+            ]
+        case "+":
+            return [
+                {
+                    rule: rule,
+                    then: Rule.next,
+                    else: Rule.fail,
+                },
+                {
+                    rule: rule,
+                    then: Rule.loop,
+                    else: Rule.next,
+                }
+            ]
+        case "?":
+            return [
+                {
+                    rule: rule,
+                    then: Rule.next,
+                    else: Rule.next,
+                }    
+            ]
+    }
 }

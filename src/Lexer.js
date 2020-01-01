@@ -33,7 +33,6 @@ Lexer.matcher = Rule.Matcher({
         type: rule[0].type,
         value: file.substring(start, start + length)
     }),
-    failure: {length: 0},
     compare: (rule, file, index) => compare(rule, file[index])
 })
 

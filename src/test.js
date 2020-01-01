@@ -1,13 +1,13 @@
 'use strict'
 
-const Rule   = require("./Rule")
-const Lexer  = require("./Lexer")
-const Parser = require("./Parser")
+const Rule     = require("./Rule")
+const Lexer    = require("./Lexer")
+const Parser   = require("./Parser")
 
 let lexer = Lexer([
     [Lexer.singlton("open_paren", "(")],
     [Lexer.singlton("close_paren", ")")],
-    [Lexer.multi("modifier", ["*","+","?"])],
+    [Lexer.multi("pattern", ["*","+","?"])],
     [
         {
             type: "char",
@@ -54,7 +54,7 @@ let lexer = Lexer([
 ])
 
 let parser = Parser({
-    set: [
+    selector: [
         [
             {
                 type: "range",
@@ -92,34 +92,58 @@ let parser = Parser({
     segment: [
         [
             {
-                type: "rule",
+                type: "segment",
 
-                rule: {type: "set"},
+                rule: {type: "selector"},
                 then: Rule.next,
                 else: Rule.fail,
 
                 as: "rule"
             },
             {
-                rule: {type: "modifier"},
+                rule: {type: "pattern"},
                 then: Rule.next,
-                else: Rule.fail,
+                else: Rule.next,
 
-                as: "modifier"
+                as: "pattern"
+            }
+        ]
+    ],
+    rule: [
+        [
+            {
+                type: "rule",
+
+                rule: {type: "segment"},
+                then: Rule.loop,
+                else: Rule.next,
+
+                as: "segments"
             }
         ]
     ]
-}, "segment")
+}, {
+    char: (node) => ({
+        type: "char",
+        value: node.value[1]
+    }),
+    segment: (node) => Rule.make(node.rule, node.pattern.value),
+    rule: (node) => node.segments.reduce((rules, rule) => rules.concat(...rule)) 
+}, "rule")
 
 ///
 
 let file = `
-    (#0 to #9)*
+    (#0 to #9)+ (#0 to #9)*
 `
 let tokens = lexer(file)
 
+console.log("=== tokens ===>")
 console.log(tokens)
+console.log("<==============")
 
 let ast = parser(tokens)
 
+console.log("=== ast ===>")
 console.log(ast)
+console.log("<===========")

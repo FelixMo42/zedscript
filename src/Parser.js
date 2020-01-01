@@ -1,27 +1,30 @@
 const Rule = require("./Rule")
 
-const Parser = module.exports = (types, baseType) => { 
+const Parser = module.exports = (types, callbacks, baseType) => { 
+    let eatToken = (tokens, index) => ({
+        value: tokens[index],
+        length: 1
+    })
+
     let parse = ({type, value}, tokens, index) => {
         if (value != undefined) {
             if (tokens[index].type == type && tokens[index].value == value) {
-                return {
-                    value: tokens[index],
-                    length: 1
-                }
+                return eatToken(tokens, index)
             } else {
                 return { length: 0 }
             }
         }
 
         if ( tokens[index].type == type ) {
-            return {
-                value: tokens[index],
-                length: 1
-            }
+            return eatToken(tokens, index)
         } else {
             return matcher.longestMatch(types[type], tokens, index, true)
         }    
     }
+
+    let eatMatch = (match) => match.type in callbacks ?
+        callbacks[match.type](match) :
+        match
 
     let matcher = Rule.Matcher({
         compare: parse,
@@ -31,22 +34,22 @@ const Parser = module.exports = (types, baseType) => {
         update: ({rule, value, match}) => {
             if ("as" in rule) {
                 let index = rule.as
-    
-                if (rule.next == Rule.loop) {
+                let node = eatMatch(match)
+ 
+                if (rule.then == Rule.loop) {
                     if (index in value) {
-                        value[index].push(match)
+                        value[index].push(node)
                     } else {
-                        value[index] = [match]
+                        value[index] = [node]
                     }
                 } else {
-                    value[index] = match
+                    value[index] = node
                 }
             }
 
             return value
-        },
-        failure: {length: 0}
+        }
     })
 
-    return (tokens) => parse({type: baseType}, tokens, 0).value
+    return (tokens) => eatMatch(parse({type: baseType}, tokens, 0).value)
 }
