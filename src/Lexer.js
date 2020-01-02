@@ -25,7 +25,7 @@ let compare = (rule, char) =>
                             .map(value => compare(value, char))
                             .some(e => e) :
     rule.type == "not"   ? !compare(rule.value, char) :
-    rule.type == "match" ? char.charCodeAt(0) == rule.value :
+    rule.type == "match" ? char == rule.value :
         Error("invalide rule type")
 
 Lexer.matcher = Rule.Matcher({
@@ -33,5 +33,5 @@ Lexer.matcher = Rule.Matcher({
         type: pattern.type,
         data: file.substring(start, start + length)
     }),
-    compare: (rule, file, index) => compare(rule, file[index])
+    compare: (rule, file, index) => compare(rule, file.charCodeAt(index))
 })
