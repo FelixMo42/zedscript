@@ -5,60 +5,65 @@ Rule.loop = 1
 Rule.fail = 2
 
 Rule.Matcher = ({compare, generate, update, finish, failure}) => {
-    let match = (rule, data, start) => {
+    let match = (pattern, data, start) => {
         // the length of the match
         let length = 0
 
+        // the maximum length for the match
         let maxLength = data.length - start
 
         // how far along we are in the rule
-        let ruleIndex = 0
+        let index = 0
 
         // generate a value to keep track of info if given a function to do so
         // else just leave it undefined
         let value = generate != undefined ?
-            generate({rule, data, start}) :
+            generate({pattern, data, start}) :
             undefined
 
         while (true) {
+            // get current rule
+            let step = pattern.steps[index]
+
             // get a match on the data
             let match = length >= maxLength ? false :
-                compare(rule[ruleIndex].rule, data, start + length)
+                compare(step.rule, data, start + length)
 
             // if return true or false then map to a lengthed value
             if (match == true ) { match = {length: 1} }
             if (match == false) { match = {length: 0} }
 
-            // was it succsefull
-            let succses = match.length != 0
+            // was it successful
+            let successful = match.length != 0
 
             // skip over whats allready been matched
             length += match.length
 
             // update the value if there is an update function
-            if (succses && update != undefined) {
+            if (successful && update != undefined) {
+                console.log(value)
                 value = update({
                     value  : value,
                     match  : match.value,
-                    rule   : rule[ruleIndex],
+                    step   : step,
                     data   : data,
                     length : length
                 })
             }
 
             // what should we do next?
-            let outcome = succses ? rule[ruleIndex].then : rule[ruleIndex].else
+            let outcome = successful ? step.then : step.else
 
-            // lets move on to the next rule
+            // lets move on to the next step
             if (outcome == Rule.next) {
-                ruleIndex += 1
+                index += 1
 
                 // weve reached the end, were done.
                 // return the length or the callback
-                if (ruleIndex == rule.length) {
+                if (index == pattern.steps.length) {
                     if (finish != undefined) {
                         return {
-                            value: finish({value, rule, data, start, length}),
+                            value: finish({value, pattern, data, start, length}),
                             length: length
                         }
                     } else {
@@ -70,7 +75,7 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
                 }
             }
 
-            // lets loop around and do the same thing again
+            // lets loop around and do the same step again
             if (outcome == Rule.loop) {}
 
             // this is not a match, return a match of length 0
@@ -106,14 +111,15 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
     return Matcher
 }
 
-Rule.patterns = {
+Rule.qualifiers = {
     "*": "*",
     "+": "+",
-    "?": "?"
+    "?": "?",
+    "-": ""
 }
 
-Rule.make = (rule, pattern) => {
-    switch (pattern) {
+Rule.make = (rule, qualifier) => {
+    switch (qualifier) {
         case "*":
             return [
                 {

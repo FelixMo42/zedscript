@@ -1,6 +1,6 @@
 const Rule = require("./Rule")
 
-const Parser = module.exports = (types, callbacks, baseType) => { 
+const Parser = module.exports = (types, baseType) => {
     let eatToken = (tokens, index) => ({
         value: tokens[index],
         length: 1
@@ -8,7 +8,7 @@ const Parser = module.exports = (types, callbacks, baseType) => {
 
     let parse = ({type, value}, tokens, index) => {
         if (value != undefined) {
-            if (tokens[index].type == type && tokens[index].value == value) {
+            if (tokens[index].data == value) {
                 return eatToken(tokens, index)
             } else {
                 return { length: 0 }
@@ -26,28 +26,27 @@ const Parser = module.exports = (types, callbacks, baseType) => {
         return { length: 0 }
     }
 
-    let eatMatch = (match) => match.type in callbacks ?
-        callbacks[match.type](match) :
-        match
-
     let matcher = Rule.Matcher({
         compare: parse,
-        generate: ({rule}) => ({
-            type: rule[0].type
+        generate: ({pattern}) => ({
+            type: pattern.type,
+            data: {}
         }),
-        update: ({rule, value, match}) => {
-            if ("as" in rule) {
-                let index = rule.as
-                let node = eatMatch(match)
+        update: ({step, value, match}) => {
+            let node = value.data
+
+            if ("as" in step) {
+                let key = step.as
+                let child = match
  
-                if (rule.then == Rule.loop) {
-                    if (index in value) {
-                        value[index].push(node)
+                if (step.then == Rule.loop) {
+                    if (key in node) {
+                        node[key].push(child)
                     } else {
-                        value[index] = [node]
+                        node[key] = [child]
                     }
                 } else {
-                    value[index] = node
+                    node[key] = child
                 }
             }
 
@@ -55,5 +54,5 @@ const Parser = module.exports = (types, callbacks, baseType) => {
         }
     })
 
-    return (tokens) => eatMatch(parse({type: baseType}, tokens, 0).value)
+    return (tokens) => parse({type: baseType}, tokens, 0).value
 }

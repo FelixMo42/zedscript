@@ -1,127 +1,189 @@
 'use strict'
 
-const Rule   = require("./Rule")
-const Lexer  = require("./Lexer")
-const Parser = require("./Parser")
+const fs       = require("fs")
+const Rule     = require("./Rule")
+const Lexer    = require("./Lexer")
+const Parser   = require("./Parser")
+const Formater = require("./Formater")
 
-let lexer = Lexer([
-    [Lexer.singlton("open_paren", "(")],
-    [Lexer.singlton("close_paren", ")")],
-    [Lexer.singlton("open_set", "[")],
-    [Lexer.singlton("close_set", "]")],
-    [Lexer.singlton("!", "!")],
-    [Lexer.singlton("=", "=")],
-    [Lexer.multi("pattern", ["*","+","?"])],
-    [
-        {
-            type: "char",
+let load = (location) =>
+    JSON.parse(fs.readFileSync(`out/${location}.json`))
 
-            rule: {type: "char", value: "#"},
-            then: Rule.next,
-            else: Rule.fail
+let save = (data, location) =>
+    fs.writeFileSync(
+        `out/${location}.json`,
+        JSON.stringify(data, undefined, "\t")
+    )
+
+let testMode = true
+
+let Token = (type, rules) => ({
+    type: type,
+    steps: rules
+})
+
+Token.single = (char) => [
+    {
+        rule: {type: "match", value: char},
+        then: Rule.next,
+        else: Rule.fail
+    }
+]
+
+Token.set = (chars) => [
+    {
+        rule: {
+            type: "set",
+            values: chars.map(char => ({type: "match", value: char}))
         },
-        {
-            rule: {
-                type: "not",
-                value: {
+        then: Rule.next,
+        else: Rule.fail
+    }
+]
+
+let lexer = testMode ?
+    Lexer( load("plon") ) :
+
+    Lexer([
+        Token("open_paren", Token.single("(")),
+        Token("close_paren", Token.single(")")),
+        Token("open_set", Token.single("[")),
+        Token("close_set", Token.single("]")),
+        Token("!", Token.single("!")),
+        Token("=", Token.single("=")),
+        Token("qualifier", Token.set(["*","+","?","-"])),
+        Token("char", [
+            {
+                rule: {type: "match", value: "#"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+            {
+                rule: {
+                    type: "not",
+                    value: {
+                        type: "set",
+                        values: [
+                            {type: "match", value: " "},
+                            {type: "match", value: "\t"},
+                            {type: "match", value: "\n"},
+                            {type: "match", value: "\n"},
+                        ]
+                    }
+                },
+                then: Rule.next,
+                else: Rule.fail
+            }
+        ]),
+        Token("special_char", [
+            {
+                rule: {type: "match", value: "\\"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+            {
+                rule: {
+                    type: "not",
+                    value: {
+                        type: "set",
+                        values: [
+                            {type: "match", value: " "},
+                            {type: "match", value: "\t"},
+                            {type: "match", value: "\n"},
+                            {type: "match", value: "\n"},
+                        ]
+                    }
+                },
+                then: Rule.next,
+                else: Rule.fail
+            }
+        ]),
+        Token("identifier", [
+            {
+                type: "identifier",
+                rule: {type: "match", value: ":"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+            {
+                rule: {type: "not", value: {
                     type: "set",
                     values: [
-                        {type: "char", value: " "},
-                        {type: "char", value: "\t"},
-                        {type: "char", value: "\n"},
-                        {type: "char", value: "\n"},
+                        {type: "match", value: " "},
+                        {type: "match", value: "\t"},
+                        {type: "match", value: "\n"},
                     ]
-                }
-            },
-            then: Rule.next,
-            else: Rule.fail
-        }
-    ],
-    [
-        {
-            type: "identifier",
-            rule: {type: "char", value: ":"},
-            then: Rule.next,
-            else: Rule.fail
-        },
-        {
-            rule: {type: "not", value: {
-                type: "set",
-                values: [
-                    {type: "char", value: " "},
-                    {type: "char", value: "\t"},
-                    {type: "char", value: "\n"},
-                ]
-            }},
-            then: Rule.loop,
-            else: Rule.next
-        }
-    ],
-    [
-        {
-            type: "word",
-
-            rule: {type: "not", value: {
-                type: "set",
-                values: [
-                    {type: "char", value: " "},
-                    {type: "char", value: "\t"},
-                    {type: "char", value: "\n"},
-                    {type: "char", value: "("},
-                    {type: "char", value: ")"},
-                    {type: "char", value: "["},
-                    {type: "char", value: "]"},
-                    {type: "char", value: "#"},
-                    {type: "char", value: "="},
-                ]
-            }},
-            then: Rule.loop,
-            else: Rule.next
-        }
-    ]
-])
+                }},
+                then: Rule.loop,
+                else: Rule.next
+            }
+        ]),
+        Token("word", [
+            {
+                rule: {type: "not", value: {
+                    type: "set",
+                    values: [
+                        {type: "match", value: " "},
+                        {type: "match", value: "\t"},
+                        {type: "match", value: "\n"},
+                        {type: "match", value: "("},
+                        {type: "match", value: ")"},
+                        {type: "match", value: "["},
+                        {type: "match", value: "]"},
+                        {type: "match", value: "#"},
+                        {type: "match", value: "="},
+                    ]
+                }},
+                then: Rule.loop,
+                else: Rule.next
+            }
+        ])
+    ])
 
 let parser = Parser({
-    selector: [
-        [
+    char: [
+        Token("node", [
             {
-                type: "match",
+                rule: {type: "special_char"},
+                then: Rule.next,
+                else: Rule.fail,
 
+                as: "value"
+            }
+        ])
+    ],
+    rule: [
+        Token("match", [
+            {
                 rule: {type: "char"},
                 then: Rule.next,
                 else: Rule.fail,
 
                 as: "value"
             }
-        ],
-        [
+        ]),
+        Token("not", [
             {
-                type: "not",
-
                 rule: {type: "!"},
                 then: Rule.next,
                 else: Rule.fail,
             },
             {
-                type: "not",
-
-                rule: {type: "selector"},
+                rule: {type: "rule"},
                 then: Rule.next,
                 else: Rule.fail,
 
                 as: "value"
             }
-        ],
-        [
+        ]),
+        Token("set", [
             {
-                type: "set",
-
                 rule: {type: "open_set"},
                 then: Rule.next,
                 else: Rule.fail,
             },
             {
-                rule: {type: "selector"},
+                rule: {type: "rule"},
                 then: Rule.loop,
                 else: Rule.next,
 
@@ -132,11 +194,9 @@ let parser = Parser({
                 then: Rule.next,
                 else: Rule.fail
             }
-        ],
-        [
+        ]),
+        Token("range", [
             {
-                type: "range",
-
                 rule: {type: "open_paren"},
                 then: Rule.next,
                 else: Rule.fail
@@ -165,38 +225,34 @@ let parser = Parser({
                 then: Rule.next,
                 else: Rule.fail
             }
-        ]
+        ])
     ],
-    segment: [
-        [
+    step: [
+        Token("step", [
             {
-                type: "segment",
-
-                rule: {type: "selector"},
+                rule: {type: "rule"},
                 then: Rule.next,
                 else: Rule.fail,
 
                 as: "rule"
             },
             {
-                rule: {type: "pattern"},
+                rule: {type: "qualifier"},
                 then: Rule.next,
                 else: Rule.next,
 
-                as: "pattern"
+                as: "qualifier"
             }
-        ]
+        ])
     ],
-    rule: [
-        [
+    pattern: [
+        Token("pattern", [
             {
-                type: "rule",
-
                 rule: {type: "identifier"},
                 then: Rule.next,
                 else: Rule.fail,
 
-                as: "name"
+                as: "type"
             },
             {
                 rule: {type: "="},
@@ -204,60 +260,56 @@ let parser = Parser({
                 else: Rule.fail
             },
             {
-                rule: {type: "segment"},
+                rule: {type: "step"},
                 then: Rule.loop,
                 else: Rule.next,
 
-                as: "segments"
+                as: "steps"
             }
-        ]
+        ])
     ],
     file: [
-        [
+        Token("file", [
             {
-                type: "file",
-
-                rule: {type: "rule"},
+                rule: {type: "pattern"},
                 then: Rule.loop,
                 else: Rule.next,
 
-                as: "rules"
+                as: "patterns"
             }
-        ]
+        ])
     ]
-}, {
-    char: (node) => ({
-        type: "char",
-        value: node.value[1]
-    }),
-    identifier: (node) => ({
-        type: "identifier",
-        value: node.value.substring(1)
-    }),
-    segment: (node) => {
-        if ("pattern" in node) {
-            return Rule.make(node.rule, node.pattern.value)
-        } else {
-            return Rule.make(node.rule, "-")
-        }
-    },
-    rule: (node) => {
-        let rules = node.segments.reduce(
-            (rules, segment) => rules.concat(...segment)
-        )
-
-        rules[0].type = node.name.value
-
-        return rules
-    },
-    file: (node) => node.rules
 }, "file")
+
+let formater = Formater({
+    char: (value) => value.charCodeAt(1),
+    special_char:  (value) => {
+        return ({
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "b": "\b",
+        "f": "\f",
+        "v": "\v",
+        "s": " "
+    })[value[1]].charCodeAt(0)},
+    identifier: (value) => value.substring(1),
+
+    node: (node) => node.value,
+
+    step: (node) => Rule.make(node.rule, node.qualifier || "-"),
+    pattern: (node) => ({
+        type: node.type,
+        steps: node.steps.reduce((steps, step) => steps.concat(...step)) 
+    }),
+    file: (node) => node.patterns
+})
 
 ///
 
 let file = `
     :open_paren   = #(
-    :close_parent = #)
+    :close_paren = #)
 
     :open_set  = #[
     :close_set = #]
@@ -267,14 +319,16 @@ let file = `
 
     :pattern = [#* #+ #? #-]
 
-    :char = ## ![#a]
+    :char = ## ![\\n \\s \\t]
 
-    :identifier = #: ![#a]+
+    :identifier = #: ![\\n \\s \\t]+
 
     :word = [(#a to #z) (#A to #Z)]+
 `
 
 let tokens = lexer(file)
+
+save(tokens, "tokens")
 
 console.log("=== tokens ===>")
 console.log(tokens)
@@ -282,6 +336,18 @@ console.log("<==============")
 
 let ast = parser(tokens)
 
+save(ast, "ast")
+
 console.log("=== ast ===>")
 console.log(ast)
 console.log("<===========")
+
+let plon = formater(ast)
+
+if (!testMode) {
+    save(plon, "plon")
+}
+
+console.log("=== plon ===>")
+console.log(plon)
+console.log("<============")

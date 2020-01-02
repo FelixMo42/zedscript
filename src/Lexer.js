@@ -20,35 +20,18 @@ const Lexer = module.exports = (rules) => (file) => {
 }
 
 let compare = (rule, char) =>
-    rule.type == "range" ? rule.start.value <= char && char <= rule.end.value :
+    rule.type == "range" ? rule.start <= char && char <= rule.end :
     rule.type == "set"   ? rule.values
                             .map(value => compare(value, char))
                             .some(e => e) :
     rule.type == "not"   ? !compare(rule.value, char) :
-    rule.type == "char"  ? char == rule.value :
+    rule.type == "match" ? char.charCodeAt(0) == rule.value :
         Error("invalide rule type")
 
 Lexer.matcher = Rule.Matcher({
-    finish: ({rule, data: file, start, length}) => ({
-        type: rule[0].type,
-        value: file.substring(start, start + length)
+    finish: ({pattern, data: file, start, length}) => ({
+        type: pattern.type,
+        data: file.substring(start, start + length)
     }),
     compare: (rule, file, index) => compare(rule, file[index])
 })
-
-Lexer.singlton = (type, char) => ({
-    type: type,
-    rule: {type: "char", value: char},
-    then: Rule.next,
-    else: Rule.fail 
-})
-
-Lexer.multi = (type, chars) => ({
-    type: type,
-    rule: {type: "set", values: chars.map(char => ({type: "char", value: char}))},
-    then: Rule.next,
-    else: Rule.fail 
-})
-
-Lexer.strip = (tokens, type="whitespace") =>
-    tokens.filter(token => token.type !== type)
