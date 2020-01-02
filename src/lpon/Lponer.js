@@ -12,7 +12,7 @@ let save = (name, version, location) =>
         JSON.stringify(data, undefined, "\t")
     )
 
-const Language = module.exports = ({lexer, parser, formater}) => {
+const Lponer = module.exports = ({lexer, parser, formater}) => {
     let lexe  = (file) => lexer(file)
     let parse = (file) => parse(lexer(file))
     let run   = (file) => formater(parser(lexer(file)))
@@ -29,20 +29,20 @@ const Language = module.exports = ({lexer, parser, formater}) => {
     }
 }
 
-Language.fromJSON = ({lexer, parser, formater}) =>
-    Language({
+Lponer.fromJSON = ({lexer, parser, formater}) =>
+    Lponer({
         lexer    : Lexer(lexer),
         parser   : Parser(parser),
         formater : Formater(formater)
     })
 
-Language.load = ({name, root="out"}) =>
-    Language.fromJSON(
+Lponer.load = ({name, root="out"}) =>
+    Lponer.fromJSON(
         JSON.parse( fs.readFileSync(`${root}/${name}.json`) )
     )
 
-Language.generate = ({target, file, name, root, lponVerison}) => {
-    let lpon = Language.load({name: `${lpon}/${lponVerison}`})
+Lponer.generate = ({target, file, name, root, lponVerison}) => {
+    let lpon = Lponer.load({name: `${lpon}/${lponVerison}`})
 
     if (file != undefined) {
         target = fs.readFileSync(`${path}.json`)
