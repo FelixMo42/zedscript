@@ -41,7 +41,6 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
 
             // update the value if there is an update function
             if (successful && update != undefined) {
-                console.log(value)
                 value = update({
                     value  : value,
                     match  : match.value,

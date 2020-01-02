@@ -1,0 +1,16 @@
+:open_paren  = #(
+:close_paren = #)
+
+:open_set  = #[
+:close_set = #]
+
+:! = #!
+:= = #=
+
+:pattern = [#* #+ #? #-]
+
+:char = ## ![\\n \\s \\t]
+
+:identifier = #: ![\\n \\s \\t]+
+
+:word = [(#a to #z) (#A to #Z)]+

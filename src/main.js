@@ -1,30 +1,56 @@
-const fs          = require("fs")
-const Lexer       = require("./Lexer")
-const Parser      = require("./Parser")
-const Interpreter = require("./Interpreter")
+'use strict'
 
-function save(data, name) {
-    return new Promise((resolve) => {
-        fs.writeFile(`out/${name}.json`, JSON.stringify(data, null, '\t'), resolve)
-    })
-}
+//Backus-Naur grammar
 
-/* tokenize it */
+const fs       = require("fs")
+const semver   = require("semver")
+const Language = require("./lpon/Language")
 
-const filePath = "test.zed"
+// load hardcoded data for lpon
+const {
+    parserRules,
+    parserDefault, 
+    formaterRules
+} = require("./data")
 
-async function runFile(filePath) {
-    const file = fs.readFileSync(filePath)
+let version = "0.0.1"
+let name    = "lpon"
+let source  = "./src/source.lpon"
+let release = "patch" // suported: none, patch
 
-    let tokens = Lexer.strip( Lexer(file) )
+let printTokens = true
+let printAST    = true
+let printData   = true
 
-    await save(tokens, "tokens")
+let saveTokens = true
+let saveAST    = true
+let saveData   = true
 
-    let ast = Parser(tokens)
+let path = (...parts) =>
+        `out/${parts.filter(i => i != undefined).join("/")}.json`
 
-    // await save(ast, "ast")
+let load = (name, version) =>
+    JSON.parse(fs.readFileSync(path(name, version)).toString())
 
-    // console.log( Interpreter(ast) )
-}
+let save = (data, name, version) =>
+    fs.writeFileSync(
+        path(name, version),
+        JSON.stringify(data, undefined, "\t")
+    )
 
-runFile(filePath)
+let language = Language({
+
+    // rules for parsing it
+    lexerRules    : load(name, version),
+    parserRules   : parserRules,
+    parserDefault : parserDefault,
+    formaterRules : formaterRules,
+
+    // display and saving options
+    printTokens , printAST , printData , 
+    saveTokens  , saveAST  , saveData
+})
+
+let file = fs.readFileSync(source).toString()
+
+language(file)

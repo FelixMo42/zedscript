@@ -15,7 +15,7 @@ const Parser = module.exports = (types, baseType) => {
             }
         }
 
-        if ( tokens[index].type == type ) {
+        if (tokens[index].type == type) {
             return eatToken(tokens, index)
         }
         
