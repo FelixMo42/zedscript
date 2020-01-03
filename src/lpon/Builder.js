@@ -10,11 +10,11 @@ let load = (path) =>
 
 let save = (data, ...parts) =>
     fs.writeFileSync(
-        `${path("out", ...parts)}.json`,
+        `${path(...parts)}.json`,
         JSON.stringify(data, undefined, "\t")
     )
 
-const Language = module.exports = (options) => {
+const Builder = module.exports = (options) => {
     let lexer    = Lexer( options.lexerRules )
     let parser   = Parser( options.parserRules, options.parserDefault )
     let formater = Formater( options.formaterRules )
@@ -31,7 +31,7 @@ const Language = module.exports = (options) => {
         }
     
         if (options.saveTokens) {
-            save(tokens, "temp", "tokens")
+            save(tokens, options.saveDir, "tokens")
         }
 
         /// PARSER ///
@@ -39,27 +39,27 @@ const Language = module.exports = (options) => {
         let ast = parser(tokens)
 
         if (options.printAST) {
-            console.log("==== AST =====")
+            console.log("===== AST ====")
             console.log(ast)
             console.log("==============")
         }
     
         if (options.saveAST) {
-            save(tokens, "temp", "ast")
+            save(ast, options.saveDir, "ast")
         }
 
         /// FORMATER ///
 
         let data = formater(ast)
 
-        if (options.printData) {
-            console.log("==== DATA ====")
+        if (options.printBuild) {
+            console.log("==== BUILD ===")
             console.log(data)
             console.log("==============")
         }
     
-        if (options.saveData) {
-            save(data, "temp", "data")
+        if (options.saveBuild) {
+            save(data, options.saveDir, "build")
         }
 
         return data

@@ -9,6 +9,7 @@ const Lexer = module.exports = (rules) => (file) => {
         let token = Lexer.matcher.longestMatch(rules, file, index, true)
 
         if (token.length == 0) {
+            // console.log(`Lexer skiping "${file[index]}"`)
             index += 1
         } else {
             tokens.push(token.value)

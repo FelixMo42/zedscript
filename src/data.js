@@ -1,3 +1,4 @@
+const _    = require("lodash")
 const Rule = require("./lpon/Rule")
 
 let Pattern = (type, rules) => ({
@@ -164,7 +165,7 @@ let formaterRules = {
 
     node: (node) => node.value,
 
-    step: (node) => Rule.make(node.rule, node.qualifier || "-"),
+    step: (node) => Rule.step.make(node.rule, node.qualifier || "-"),
     pattern: (node) => ({
         type: node.type,
         steps: node.steps.reduce((steps, step) => steps.concat(...step)) 

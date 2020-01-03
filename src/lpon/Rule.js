@@ -62,7 +62,13 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
                 if (index == pattern.steps.length) {
                     if (finish != undefined) {
                         return {
-                            value: finish({value, pattern, data, start, length}),
+                            value: finish({
+                                value,
+                                pattern,
+                                data,
+                                start,
+                                length
+                            }),
                             length: length
                         }
                     } else {
@@ -79,6 +85,7 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
 
             // this is not a match, return a match of length 0
             if (outcome == Rule.fail) {
+                // console.log("failed at: ", data[index])
                 return { value: failure, length: 0 }
             }
         }
@@ -110,51 +117,48 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
     return Matcher
 }
 
-Rule.qualifiers = {
-    "*": "*",
-    "+": "+",
-    "?": "?",
-    "-": ""
+Rule.step = {}
+
+Rule.step.qualifiers = {
+    "*": (rule) => [
+        {
+            rule: rule,
+            then: Rule.loop,
+            else: Rule.next,
+        }
+    ],
+    "+": rule => [
+        {
+            rule: rule,
+            then: Rule.next,
+            else: Rule.fail,
+        },
+        {
+            rule: rule,
+            then: Rule.loop,
+            else: Rule.next,
+        }
+    ],
+    "?": rule => [
+        {
+            rule: rule,
+            then: Rule.next,
+            else: Rule.next,
+        }    
+    ],
+    "-": rule => [
+        {
+            rule: rule,
+            then: Rule.next,
+            else: Rule.fail,
+        }
+    ]
 }
 
-Rule.make = (rule, qualifier) => {
-    switch (qualifier) {
-        case "*":
-            return [
-                {
-                    rule: rule,
-                    then: Rule.loop,
-                    else: Rule.next,
-                }
-            ]
-        case "+":
-            return [
-                {
-                    rule: rule,
-                    then: Rule.next,
-                    else: Rule.fail,
-                },
-                {
-                    rule: rule,
-                    then: Rule.loop,
-                    else: Rule.next,
-                }
-            ]
-        case "?":
-            return [
-                {
-                    rule: rule,
-                    then: Rule.next,
-                    else: Rule.next,
-                }    
-            ]
-        case "-":
-            return [
-                {
-                    rule: rule,
-                    then: Rule.next,
-                    else: Rule.fail,
-                }    
-            ]
+Rule.step.make = (rule, qualifier) => {
+    if (!(qualifier in Rule.step.qualifiers)) {
+        console.log(`Invalid step qualifier: "${qualifier}"`)
     }
+
+    return Rule.step.qualifiers[qualifier](rule)
 }

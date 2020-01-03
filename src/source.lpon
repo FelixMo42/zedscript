@@ -7,10 +7,11 @@
 :! = #!
 := = #=
 
-:pattern = [#* #+ #? #-]
+:qualifier = [#* #+ #? #-]
 
-:char = ## ![\\n \\s \\t]
+:char = ## ![\n \s \t]
+:special_char = #\ ![\n \s \t]
 
-:identifier = #: ![\\n \\s \\t]+
+:identifier = #: ![\n \s \t]+
 
 :word = [(#a to #z) (#A to #Z)]+
