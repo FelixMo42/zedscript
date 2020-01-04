@@ -1,5 +1,4 @@
 'use strict'
-//Backus-Naur grammar
 
 /// IMPORT ///
 
@@ -15,8 +14,8 @@ const { parserRules, parserDefault, formaterRules } = require("./data")
 
 const version = "0.0.1"
 const name    = "lpon"
-const source  = "./src/source.lpon"
-const action  = "test" // suported: none, run, test, clear
+const source  = "./src2/source.lpon"
+const action  = "run" // suported: none, run, test, clear
 
 const printTokens = true
 const printAST    = true
