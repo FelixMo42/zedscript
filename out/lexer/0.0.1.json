@@ -1,6 +1,58 @@
 [
 	{
-		"type": "not",
+		"type": "open_paren",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 40
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "close_paren",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 41
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "open_set",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 91
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "close_set",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 93
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "!",
 		"steps": [
 			{
 				"rule": {
@@ -13,117 +65,12 @@
 		]
 	},
 	{
-		"type": "equal",
+		"type": "=",
 		"steps": [
 			{
 				"rule": {
 					"type": "match",
 					"value": 61
-				},
-				"then": 0,
-				"else": 2
-			}
-		]
-	},
-	{
-		"type": "and",
-		"steps": [
-			{
-				"rule": {
-					"type": "match",
-					"value": 38
-				},
-				"then": 0,
-				"else": 2
-			}
-		]
-	},
-	{
-		"type": "or",
-		"steps": [
-			{
-				"rule": {
-					"type": "match",
-					"value": 124
-				},
-				"then": 0,
-				"else": 2
-			}
-		]
-	},
-	{
-		"type": "colon",
-		"steps": [
-			{
-				"rule": {
-					"type": "match",
-					"value": 58
-				},
-				"then": 0,
-				"else": 2
-			}
-		]
-	},
-	{
-		"type": "parenthesis",
-		"steps": [
-			{
-				"rule": {
-					"type": "set",
-					"values": [
-						{
-							"type": "match",
-							"value": 40
-						},
-						{
-							"type": "match",
-							"value": 41
-						}
-					]
-				},
-				"then": 0,
-				"else": 2
-			}
-		]
-	},
-	{
-		"type": "brace",
-		"steps": [
-			{
-				"rule": {
-					"type": "set",
-					"values": [
-						{
-							"type": "match",
-							"value": 123
-						},
-						{
-							"type": "match",
-							"value": 125
-						}
-					]
-				},
-				"then": 0,
-				"else": 2
-			}
-		]
-	},
-	{
-		"type": "bracket",
-		"steps": [
-			{
-				"rule": {
-					"type": "set",
-					"values": [
-						{
-							"type": "match",
-							"value": 91
-						},
-						{
-							"type": "match",
-							"value": 93
-						}
-					]
 				},
 				"then": 0,
 				"else": 2
@@ -166,7 +113,7 @@
 			{
 				"rule": {
 					"type": "match",
-					"value": 39
+					"value": 35
 				},
 				"then": 0,
 				"else": 2
@@ -183,10 +130,6 @@
 							},
 							{
 								"type": "match",
-								"value": 13
-							},
-							{
-								"type": "match",
 								"value": 32
 							},
 							{
@@ -198,19 +141,11 @@
 				},
 				"then": 0,
 				"else": 2
-			},
-			{
-				"rule": {
-					"type": "match",
-					"value": 39
-				},
-				"then": 0,
-				"else": 2
 			}
 		]
 	},
 	{
-		"type": "char",
+		"type": "special_char",
 		"steps": [
 			{
 				"rule": {
@@ -232,10 +167,6 @@
 							},
 							{
 								"type": "match",
-								"value": 13
-							},
-							{
-								"type": "match",
 								"value": 32
 							},
 							{
@@ -251,12 +182,12 @@
 		]
 	},
 	{
-		"type": "string",
+		"type": "identifier",
 		"steps": [
 			{
 				"rule": {
 					"type": "match",
-					"value": 34
+					"value": 58
 				},
 				"then": 0,
 				"else": 2
@@ -269,21 +200,45 @@
 						"values": [
 							{
 								"type": "match",
-								"value": 34
+								"value": 10
+							},
+							{
+								"type": "match",
+								"value": 32
+							},
+							{
+								"type": "match",
+								"value": 9
+							}
+						]
+					}
+				},
+				"then": 0,
+				"else": 2
+			},
+			{
+				"rule": {
+					"type": "not",
+					"value": {
+						"type": "set",
+						"values": [
+							{
+								"type": "match",
+								"value": 10
+							},
+							{
+								"type": "match",
+								"value": 32
+							},
+							{
+								"type": "match",
+								"value": 9
 							}
 						]
 					}
 				},
 				"then": 1,
 				"else": 0
-			},
-			{
-				"rule": {
-					"type": "match",
-					"value": 34
-				},
-				"then": 0,
-				"else": 2
 			}
 		]
 	},
@@ -303,14 +258,6 @@
 							"type": "range",
 							"start": 65,
 							"end": 90
-						},
-						{
-							"type": "match",
-							"value": 95
-						},
-						{
-							"type": "match",
-							"value": 45
 						}
 					]
 				},
@@ -330,14 +277,6 @@
 							"type": "range",
 							"start": 65,
 							"end": 90
-						},
-						{
-							"type": "match",
-							"value": 95
-						},
-						{
-							"type": "match",
-							"value": 45
 						}
 					]
 				},

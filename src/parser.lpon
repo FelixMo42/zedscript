@@ -1,0 +1,19 @@
+:qualifier = [#* #+ #? #^]
+
+:parentheses = [#( #)]
+:brackets    = [#[ #]]
+:brackets    = [#{ #}]
+
+:string = #' ![#'] #'
+
+:word = [(#a to #z) (#A to #Z) #- #_]+
+
+:not = #!
+
+:and = #&
+:or  = #|
+
+:equal = #=
+:colon = #:
+
+:special_char = #\ ![\n \s \t]

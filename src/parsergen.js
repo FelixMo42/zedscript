@@ -8,13 +8,13 @@ const semver  = require("semver")
 const Builder = require("./lpon/Builder")
 
 // load hardcoded data for lpon
-const { parserRules, parserDefault, formaterRules } = require("./data")
+const { parserRules, parserDefault, formaterRules } = require("./parserdata")
 
 /// OPTIONS ///
 
 const version = "0.0.1"
 const name    = "parser"
-const source  = `./src/${name}.lpon`
+const source  = `./src/tokens.tbd`
 const action  = "run" // suported: none, run, test, clear
 
 const printTokens = true
@@ -48,7 +48,7 @@ let save = (data, name, version) =>
         JSON.stringify(data, undefined, "\t")
     )
 
-let get = (version, options) => make( load("lexer", version), options )
+let get = (version, options) => make( load("parser", version), options )
 
 let make = (lexerRules, options={}) => 
     Builder({

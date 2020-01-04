@@ -1,0 +1,12 @@
+char : node = special_char{value}
+rule
+    : match = char{value}
+    : not   = not rule{value}
+    : set   = '[' rule{values}* ']'
+    : range = '(' char{start} 'to' char{end} ')'
+step
+    : step = rule{rule} qualifier{qualifier}
+pattern
+    : pattern = identifier{type} '=' step{steps}*
+file
+    : file = pattern{patterns}*

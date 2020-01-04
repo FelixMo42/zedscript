@@ -1,0 +1,296 @@
+[
+	{
+		"type": "qualifier",
+		"steps": [
+			{
+				"rule": {
+					"type": "set",
+					"values": [
+						{
+							"type": "match",
+							"value": 42
+						},
+						{
+							"type": "match",
+							"value": 43
+						},
+						{
+							"type": "match",
+							"value": 63
+						},
+						{
+							"type": "match",
+							"value": 94
+						}
+					]
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "parentheses",
+		"steps": [
+			{
+				"rule": {
+					"type": "set",
+					"values": [
+						{
+							"type": "match",
+							"value": 40
+						},
+						{
+							"type": "match",
+							"value": 41
+						}
+					]
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "brackets",
+		"steps": [
+			{
+				"rule": {
+					"type": "set",
+					"values": [
+						{
+							"type": "match",
+							"value": 91
+						},
+						{
+							"type": "match",
+							"value": 93
+						}
+					]
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "brackets",
+		"steps": [
+			{
+				"rule": {
+					"type": "set",
+					"values": [
+						{
+							"type": "match",
+							"value": 123
+						},
+						{
+							"type": "match",
+							"value": 125
+						}
+					]
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "string",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 39
+				},
+				"then": 0,
+				"else": 2
+			},
+			{
+				"rule": {
+					"type": "not",
+					"value": {
+						"type": "set",
+						"values": [
+							{
+								"type": "match",
+								"value": 39
+							}
+						]
+					}
+				},
+				"then": 0,
+				"else": 2
+			},
+			{
+				"rule": {
+					"type": "match",
+					"value": 39
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "word",
+		"steps": [
+			{
+				"rule": {
+					"type": "set",
+					"values": [
+						{
+							"type": "range",
+							"start": 97,
+							"end": 122
+						},
+						{
+							"type": "range",
+							"start": 65,
+							"end": 90
+						},
+						{
+							"type": "match",
+							"value": 45
+						},
+						{
+							"type": "match",
+							"value": 95
+						}
+					]
+				},
+				"then": 0,
+				"else": 2
+			},
+			{
+				"rule": {
+					"type": "set",
+					"values": [
+						{
+							"type": "range",
+							"start": 97,
+							"end": 122
+						},
+						{
+							"type": "range",
+							"start": 65,
+							"end": 90
+						},
+						{
+							"type": "match",
+							"value": 45
+						},
+						{
+							"type": "match",
+							"value": 95
+						}
+					]
+				},
+				"then": 1,
+				"else": 0
+			}
+		]
+	},
+	{
+		"type": "not",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 33
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "and",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 38
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "or",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 124
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "equal",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 61
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "colon",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 58
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
+		"type": "special_char",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 92
+				},
+				"then": 0,
+				"else": 2
+			},
+			{
+				"rule": {
+					"type": "not",
+					"value": {
+						"type": "set",
+						"values": [
+							{
+								"type": "match",
+								"value": 10
+							},
+							{
+								"type": "match",
+								"value": 32
+							},
+							{
+								"type": "match",
+								"value": 9
+							}
+						]
+					}
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	}
+]
