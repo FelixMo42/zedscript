@@ -1,4 +1,5 @@
 const _    = require("lodash")
+const fs   = require("fs")
 const Rule = require("./lpon/Rule")
 
 let Pattern = (type, rules) => ({
@@ -6,11 +7,25 @@ let Pattern = (type, rules) => ({
     steps: rules
 })
 
-let parserRules = {
+let parserRules =
+
+JSON.parse( fs.readFileSync("src/build.json").toString() )
+let temp = 
+
+{
     rule: [
         Pattern("token", [
             {
                 rule: {type: "word"},
+                then: Rule.next,
+                else: Rule.fail,
+
+                as: "value"
+            }
+        ]),
+        Pattern("value", [
+            {
+                rule: {type: "string"},
                 then: Rule.next,
                 else: Rule.fail,
 
@@ -149,7 +164,6 @@ let parserDefault = "file"
 let formaterRules = {
     file: node => 
         node.types.reduce((types, type) => {
-            console.log(type)
             types[type.name] = type.subtypes
 
             return types
@@ -158,11 +172,16 @@ let formaterRules = {
         type: node.name,
         steps: node.pattern 
     }),
-    pattern: node => {
-        console.log(node)
-        return node.rules.reduce((steps, step) => steps.concat(...step))},
+    pattern: node =>
+       node.rules.reduce((steps, step) => steps.concat(...step)),
     as: node => node.value,
-    step: node => Rule.step.make(node.rule, node.qualifier || "-", {as: node.as}),
+    step: node =>
+        Rule.step.make(node.rule, node.qualifier || "-", {as: node.as}),
+    
+    token: node => ({type: node.value}),
+    value: node => ({value: node.value}),
+
+    string: value => value.substring(1, value.length - 1)
 }
 
 module.exports = { parserRules, parserDefault,  formaterRules }

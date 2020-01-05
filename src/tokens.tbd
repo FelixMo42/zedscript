@@ -1,13 +1,14 @@
-token
+rule
     : token = word{value}
+    : value = string{value}
 as
-    : as = '{' word '}'
+    : as = '{' word{value} '}'
 step
-    : step = rule{rule} as{as} qualifier{qualifier}
+    : step = rule{rule} as{as}? qualifier{qualifier}?
 pattern
     : pattern = step{rules}*
 subtype
-    : colon word equal pattern{pattern} newline
+    : subtype = colon word{name} equal pattern{pattern} newline
 type
     : type = word{name} newline subtype{subtypes}*
 file

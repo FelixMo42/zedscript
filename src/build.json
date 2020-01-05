@@ -1,0 +1,194 @@
+{
+	"rule": [
+		{
+			"type": "token",
+			"steps": [
+				{
+					"rule": {
+						"type": "word"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "value"
+				}
+			]
+		},
+		{
+			"type": "value",
+			"steps": [
+				{
+					"rule": {
+						"type": "string"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "value"
+				}
+			]
+		}
+	],
+	"as": [
+		{
+			"type": "as",
+			"steps": [
+				{
+					"rule": {
+						"value": "{"
+					},
+					"then": 0,
+					"else": 2
+				},
+				{
+					"rule": {
+						"type": "word"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "value"
+				},
+				{
+					"rule": {
+						"value": "}"
+					},
+					"then": 0,
+					"else": 2
+				}
+			]
+		}
+	],
+	"step": [
+		{
+			"type": "step",
+			"steps": [
+				{
+					"rule": {
+						"type": "rule"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "rule"
+				},
+				{
+					"rule": {
+						"type": "as"
+					},
+					"then": 0,
+					"else": 0,
+					"as": "as"
+				},
+				{
+					"rule": {
+						"type": "qualifier"
+					},
+					"then": 0,
+					"else": 0,
+					"as": "qualifier"
+				}
+			]
+		}
+	],
+	"pattern": [
+		{
+			"type": "pattern",
+			"steps": [
+				{
+					"rule": {
+						"type": "step"
+					},
+					"then": 1,
+					"else": 0,
+					"as": "rules"
+				}
+			]
+		}
+	],
+	"subtype": [
+		{
+			"type": "subtype",
+			"steps": [
+				{
+					"rule": {
+						"type": "colon"
+					},
+					"then": 0,
+					"else": 2
+				},
+				{
+					"rule": {
+						"type": "word"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "name"
+				},
+				{
+					"rule": {
+						"type": "equal"
+					},
+					"then": 0,
+					"else": 2
+				},
+				{
+					"rule": {
+						"type": "pattern"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "pattern"
+				},
+				{
+					"rule": {
+						"type": "newline"
+					},
+					"then": 0,
+					"else": 2
+				}
+			]
+		}
+	],
+	"type": [
+		{
+			"type": "type",
+			"steps": [
+				{
+					"rule": {
+						"type": "word"
+					},
+					"then": 0,
+					"else": 2,
+					"as": "name"
+				},
+				{
+					"rule": {
+						"type": "newline"
+					},
+					"then": 0,
+					"else": 2
+				},
+				{
+					"rule": {
+						"type": "subtype"
+					},
+					"then": 1,
+					"else": 0,
+					"as": "subtypes"
+				}
+			]
+		}
+	],
+	"file": [
+		{
+			"type": "file",
+			"steps": [
+				{
+					"rule": {
+						"type": "type"
+					},
+					"then": 1,
+					"else": 0,
+					"as": "types"
+				}
+			]
+		}
+	]
+}
