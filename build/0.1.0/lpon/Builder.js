@@ -5,9 +5,6 @@ const Formater = require("./Formater")
 
 let path = (...parts) => parts.filter(i => i != undefined).join("/")
 
-let load = (path) =>
-    JSON.parse(fs.readFileSync(`${path}.json`))
-
 let save = (data, ...parts) =>
     fs.writeFileSync(
         `${path(...parts)}.json`,
