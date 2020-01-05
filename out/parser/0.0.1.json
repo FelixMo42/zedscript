@@ -52,6 +52,19 @@
 		]
 	},
 	{
+		"type": "newline",
+		"steps": [
+			{
+				"rule": {
+					"type": "match",
+					"value": 10
+				},
+				"then": 0,
+				"else": 2
+			}
+		]
+	},
+	{
 		"type": "brackets",
 		"steps": [
 			{

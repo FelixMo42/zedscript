@@ -7,21 +7,10 @@ let Pattern = (type, rules) => ({
 })
 
 let parserRules = {
-    char: [
-        Pattern("node", [
-            {
-                rule: {type: "special_char"},
-                then: Rule.next,
-                else: Rule.fail,
-
-                as: "value"
-            }
-        ])
-    ],
     rule: [
-        Pattern("match", [
+        Pattern("token", [
             {
-                rule: {type: "char"},
+                rule: {type: "word"},
                 then: Rule.next,
                 else: Rule.fail,
 
@@ -42,54 +31,25 @@ let parserRules = {
                 as: "value"
             }
         ]),
-        Pattern("set", [
+    ],
+    as: [
+        Pattern("as", [
             {
-                rule: {type: "open_set"},
+                rule: {value: "{"},
                 then: Rule.next,
                 else: Rule.fail,
             },
             {
-                rule: {type: "rule"},
-                then: Rule.loop,
-                else: Rule.next,
-
-                as: "values"
-            },
-            {
-                rule: {type: "close_set"},
-                then: Rule.next,
-                else: Rule.fail
-            }
-        ]),
-        Pattern("range", [
-            {
-                rule: {type: "open_paren"},
-                then: Rule.next,
-                else: Rule.fail
-            },
-            {
-                rule: {type: "char"},
+                rule: {type: "word"},
                 then: Rule.next,
                 else: Rule.fail,
 
-                as: "start"
+                as: "value"
             },
             {
-                rule: {type: "word", value: "to"},
-                then: Rule.next,
-                else: Rule.fail
-            },
-            {
-                rule: {type: "char"},
+                rule: {value: "}"},
                 then: Rule.next,
                 else: Rule.fail,
-
-                as: "end"
-            },
-            {
-                rule: {type: "close_paren"},
-                then: Rule.next,
-                else: Rule.fail
             }
         ])
     ],
@@ -103,45 +63,96 @@ let parserRules = {
                 as: "rule"
             },
             {
+                rule: {type: "as"},
+                then: Rule.next,
+                else: Rule.next,
+
+                as: "as"
+            },
+            {
                 rule: {type: "qualifier"},
                 then: Rule.next,
                 else: Rule.next,
 
                 as: "qualifier"
-            }
+            }  
         ])
     ],
     pattern: [
         Pattern("pattern", [
             {
-                rule: {type: "identifier"},
-                then: Rule.next,
-                else: Rule.fail,
-
-                as: "type"
-            },
-            {
-                rule: {type: "="},
-                then: Rule.next,
-                else: Rule.fail
-            },
-            {
                 rule: {type: "step"},
                 then: Rule.loop,
                 else: Rule.next,
 
-                as: "steps"
+                as: "rules"
+            }
+        ])
+    ],
+    subtype: [
+        Pattern("subtype", [
+            {
+                rule: {type: "colon"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+            {
+                rule: {type: "word"},
+                then: Rule.next,
+                else: Rule.fail,
+
+                as: "name"
+            },
+            {
+                rule: {type: "equal"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+            {
+                rule: {type: "pattern"},
+                then: Rule.next,
+                else: Rule.fail,
+
+                as: "pattern"
+            },
+            {
+                rule: {type: "newline"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+        ])
+    ],
+    type: [
+        Pattern("type", [
+            {
+                rule: {type: "word"},
+                then: Rule.next,
+                else: Rule.fail,
+
+                as: "name"
+            },
+            {
+                rule: {type: "newline"},
+                then: Rule.next,
+                else: Rule.fail
+            },
+            {
+                rule: {type: "subtype"},
+                then: Rule.loop,
+                else: Rule.next,
+
+                as: "subtypes"
             }
         ])
     ],
     file: [
         Pattern("file", [
             {
-                rule: {type: "pattern"},
+                rule: {type: "type"},
                 then: Rule.loop,
                 else: Rule.next,
 
-                as: "patterns"
+                as: "types"
             }
         ])
     ]
@@ -150,6 +161,22 @@ let parserRules = {
 let parserDefault = "file"
 
 let formaterRules = {
+    file: node => 
+        node.types.reduce((types, type) => {
+            console.log(type)
+            types[type.name] = type.subtypes
+
+            return types
+        }, {}),
+    subtype: node => ({
+        type: node.name,
+        steps: node.pattern 
+    }),
+    pattern: node => {
+        console.log(node)
+        return node.rules.reduce((steps, step) => steps.concat(...step))},
+    as: node => node.value,
+    step: node => Rule.step.make(node.rule, node.qualifier || "-", {as: node.as}),
 }
 
 module.exports = { parserRules, parserDefault,  formaterRules }

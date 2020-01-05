@@ -168,7 +168,7 @@ let formaterRules = {
     step: (node) => Rule.step.make(node.rule, node.qualifier || "-"),
     pattern: (node) => ({
         type: node.type,
-        steps: node.steps.reduce((steps, step) => steps.concat(...step)) 
+        steps: node.rules.reduce((steps, step) => steps.concat(...step)) 
     }),
     file: (node) => node.patterns
 }

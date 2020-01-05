@@ -1,4 +1,5 @@
-char : node = special_char{value}
+char
+    : node = special_char{value}
 rule
     : match = char{value}
     : not   = not rule{value}

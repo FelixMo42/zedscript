@@ -120,45 +120,50 @@ Rule.Matcher = ({compare, generate, update, finish, failure}) => {
 Rule.step = {}
 
 Rule.step.qualifiers = {
-    "*": (rule) => [
+    "*": (rule, extra) => [
         {
             rule: rule,
             then: Rule.loop,
             else: Rule.next,
+            ...extra
         }
     ],
-    "+": rule => [
+    "+": (rule, extra) => [
         {
             rule: rule,
             then: Rule.next,
             else: Rule.fail,
+            ...extra
         },
         {
             rule: rule,
             then: Rule.loop,
             else: Rule.next,
+            ...extra
         }
     ],
-    "?": rule => [
+    "?": (rule, extra) => [
         {
             rule: rule,
             then: Rule.next,
             else: Rule.next,
+            ...extra
         }    
     ],
-    "-": rule => [
+    "-": (rule, extra) => [
         {
             rule: rule,
             then: Rule.next,
             else: Rule.fail,
+            ...extra
         }
     ]
 }
 
-Rule.step.make = (rule, qualifier) => {
+Rule.step.make = (rule, qualifier, extra) => {
     if (!(qualifier in Rule.step.qualifiers)) {
         console.log(`Invalid step qualifier: "${qualifier}"`)
     }
 
-    return Rule.step.qualifiers[qualifier](rule)
+    return Rule.step.qualifiers[qualifier](rule, extra)
 }
