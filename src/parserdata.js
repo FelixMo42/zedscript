@@ -16,21 +16,7 @@ let parserRules = {
 
                 as: "value"
             }
-        ]),
-        Pattern("not", [
-            {
-                rule: {type: "!"},
-                then: Rule.next,
-                else: Rule.fail,
-            },
-            {
-                rule: {type: "rule"},
-                then: Rule.next,
-                else: Rule.fail,
-
-                as: "value"
-            }
-        ]),
+        ])
     ],
     as: [
         Pattern("as", [

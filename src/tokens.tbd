@@ -1,13 +1,14 @@
-char
-    : node = special_char{value}
-rule
-    : match = char{value}
-    : not   = not rule{value}
-    : set   = '[' rule{values}* ']'
-    : range = '(' char{start} 'to' char{end} ')'
+token
+    : token = word{value}
+as
+    : as = '{' word '}'
 step
-    : step = rule{rule} qualifier{qualifier}
+    : step = rule{rule} as{as} qualifier{qualifier}
 pattern
-    : pattern = identifier{type} '=' step{steps}*
+    : pattern = step{rules}*
+subtype
+    : colon word equal pattern{pattern} newline
+type
+    : type = word{name} newline subtype{subtypes}*
 file
-    : file = pattern{patterns}*
+    : file = type{types}*
