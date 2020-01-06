@@ -1,0 +1,46 @@
+{
+    "parserDefault" : "file",
+    "formaterRules" : "./callbacks.js",
+
+    "uses" : []
+}
+
+;;;
+
+:qualifier = [#* #+ #? #^]
+
+:parentheses = [#( #)]
+:brackets    = [#[ #]]
+:brackets    = [#{ #}]
+
+:string = #' ![#'] #'
+
+:word = [(#a to #z) (#A to #Z) #- #_]+
+
+:not = #!
+
+:and = #&
+:or  = #|
+
+:equal = #=
+:colon = #:
+
+:special_char = #\ ![\n \s \t]
+
+;;;
+
+rule
+    : token = word{value}
+    : value = string{value}
+as
+    : as = '{' word{value} '}'
+step
+    : step = rule{rule} as{as}? qualifier{qualifier}?
+pattern
+    : pattern = step{rules}*
+subtype
+    : subtype = colon word{name} equal pattern{pattern} newline
+type
+    : type = word{name} newline subtype{subtypes}*
+file
+    : file = type{types}*

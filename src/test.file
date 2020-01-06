@@ -1,48 +1,52 @@
-{
-    "parserDefault" : "file",
-    "formaterRules" : "./callbacks.js",
+@string
+    = '"' !'"'* '"'
+    = "'" !"'"* "'"
 
-    "uses" : [
+@word = (("a"-"z") | ("A"-"Z"))+
 
-    ]
-}
+@optionName = "%" word
+@ruleName = ("@" | ":") word
 
-;;;
 
-:qualifier = [#* #+ #? #^]
+@callbackSpecifier = ">"
 
-:parentheses = [#( #)]
-:brackets    = [#[ #]]
-:brackets    = [#{ #}]
+@equal = "="
 
-:string = #' ![#'] #'
+@qualifier = ("*" | "+" | "?" | "^")
 
-:word = [(#a to #z) (#A to #Z) #- #_]+
+@not = "!"
 
-:not = #!
+@and = "&"
+@or  = "|"
+@to  = "-"
 
-:and = #&
-:or  = #|
+@brackets = ("(" | ")" | "[" | "]" | "{" | "}")
 
-:equal = #=
-:colon = #:
+@whitespace = (" " | "\t" | "\n" | "\r")
+@comment = ";" !"\n"*
 
-:special_char = #\ ![\n \s \t]
+:rule
+    = word
+    = string
 
-;;;
+    = not rule
 
-rule
-    : token = word{value}
-    : value = string{value}
-as
-    : as = '{' word{value} '}'
-step
-    : step = rule{rule} as{as}? qualifier{qualifier}?
-pattern
-    : pattern = step{rules}*
-subtype
-    : subtype = colon word{name} equal pattern{pattern} newline
-type
-    : type = word{name} newline subtype{subtypes}*
-file
-    : file = type{types}*
+    = '(' pattern ')'
+    = '(' pattern (and pattern)* ')'
+    = '(' pattern (or pattern)* ')'
+
+    = '(' string to string ')'
+
+:variable
+    = "[" word "]"
+    = "{" word "}"
+
+:step = rule variable? qualifier?
+
+:pattern = step*
+
+:type = ruleName (equal pattern)*
+
+:option = optionName equal string
+
+:file = (option | pattern)*

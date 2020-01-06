@@ -1,11 +1,20 @@
-const fs     = require("fs")
-const parser = require("../build/0.1.0")
+let fs = require("fs-extra")
 
-parser(
-    "src/test.file",
-    "out/temp/build/",
-    {
-        // printTokens: true , printAST: true , printBuild: true, 
-        saveTokens: true  , saveAST: true  , saveBuild: true
-    }
+let opts = {
+    // printTokens: true , printAST: true , printBuild: true, 
+    // saveTokens: true  , saveAST: true  , saveBuild: true
+}
+
+require("../build/0.1.0")( "src/source.file", "temp/", opts)
+
+console.log("> built language successfully")
+
+let ast = require("../temp")(
+    fs.readFileSync("src/test.file").toString()
 )
+
+console.log("> built file successfully")
+
+console.log("")
+
+console.log(ast)
