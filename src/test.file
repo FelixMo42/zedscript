@@ -1,5 +1,10 @@
 {
-    "parserDefault" : "file"
+    "parserDefault" : "file",
+    "formaterRules" : "./callbacks.js",
+
+    "uses" : [
+
+    ]
 }
 
 ;;;
