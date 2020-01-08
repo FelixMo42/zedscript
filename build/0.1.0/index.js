@@ -12,13 +12,13 @@ function addFile(file, target, root=__dirname) {
 module.exports = (file, target, options) => {
     let lexerBuilder = Builder({
         ...require("./lexerdata"),
-        saveDir: "./out/temp/lexer",
+        saveDir: "./temp/lexer",
         ...options
     })
 
     let parserBuilder = Builder({
         ...require("./parserdata"),
-        saveDir: "./out/temp/parser",
+        saveDir: "./temp/parser",
         ...options
     })
 

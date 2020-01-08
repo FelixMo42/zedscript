@@ -7,11 +7,15 @@
 
 ;;;
 
-:qualifier = [#* #+ #? #^]
+:qualifier = [#* #+ #? #,]
+
+:specifier = #>
+
+:typeSpecifier = [#@ #:]
 
 :parentheses = [#( #)]
-:brackets    = [#[ #]]
-:brackets    = [#{ #}]
+:brackets = [#[ #]]
+:braces = [#{ #}]
 
 :string = #' ![#'] #'
 
@@ -25,22 +29,31 @@
 :equal = #=
 :colon = #:
 
-:special_char = #\ ![\n \s \t]
-
 ;;;
 
-rule
-    : token = word{value}
-    : value = string{value}
-as
-    : as = '{' word{value} '}'
-step
-    : step = rule{rule} as{as}? qualifier{qualifier}?
-pattern
-    : pattern = step{rules}*
-subtype
-    : subtype = colon word{name} equal pattern{pattern} newline
 type
-    : type = word{name} newline subtype{subtypes}*
-file
-    : file = type{types}*
+    = word equal pattern
+pattern
+    = step*
+step
+    = rule key? qualifier?
+key
+    = "{" word "}"
+    = "[" word "]"
+rule
+    = not rule
+    = word
+    = string
+    = "(" pattern ")"
+    = "(" pattern andBlock* ")"
+    = "(" pattern orBlock* ")"
+andBlock
+    = "&" pattern
+    = "|" pattern
+paramater
+    = word
+    = not word
+    = word equal word
+value
+    = string
+    = number
