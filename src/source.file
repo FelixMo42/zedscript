@@ -31,29 +31,33 @@
 
 ;;;
 
+file
+    : file = type{types}*
 type
-    = word equal pattern
+    : type = typeSpecifier{name} word subtype{subtypes}*
+subtype
+    : subtype = equal pattern{pattern}
 pattern
-    = step*
+    : pattern = step{steps}*
 step
-    = rule key? qualifier?
+    : step = rule{rule} key{key}? qualifier{qualifier}?
 key
-    = "{" word "}"
-    = "[" word "]"
+    : curleyKey = '{' word{key} '}'
+    : squareKey = '[' word{key} ']'
 rule
-    = not rule
-    = word
-    = string
-    = "(" pattern ")"
-    = "(" pattern andBlock* ")"
-    = "(" pattern orBlock* ")"
+    : notRule = not rule{value}
+    : typeRule = word{value}
+    : valueRule = string{value}
+    : patternRule = '(' pattern{value} ')'
+    : andRule = '(' pattern{value} andBlock* ')'
+    : orRule = '(' pattern{value} orBlock* ')'
 andBlock
-    = "&" pattern
-    = "|" pattern
+    : andBlock = '&' pattern{value}
+    : orBlock = '|' pattern{value}
 paramater
-    = word
-    = not word
-    = word equal word
+    : wordParam = word{value}
+    : notParam = not word{value}
+    : valParam = word{key} equal word{value}
 value
-    = string
-    = number
+    : stringVal = string{value}
+    : numberVal = number{value}

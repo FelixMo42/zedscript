@@ -7,7 +7,6 @@
 @optionName = "%" word
 @ruleName = ("@" | ":") word
 
-
 @callbackSpecifier = ">"
 
 @equal = "="
@@ -34,8 +33,6 @@
     = '(' pattern ')'
     = '(' pattern (and pattern)* ')'
     = '(' pattern (or pattern)* ')'
-
-    = '(' string to string ')'
 
 :variable
     = "[" word "]"
