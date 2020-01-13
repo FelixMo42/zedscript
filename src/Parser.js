@@ -1,23 +1,33 @@
 let { Stack } = require('immutable');
 
 
-let parse = (type, step, tokens, index, nexts, fails) => {
-    let { quantifier, rule } = type.pattern[step]
+let parse = async (type, step, tokens, index, then, fail) => {
+    let { rule, quantifier } = type.pattern[step]
 
-    if (rule.type == "") {
+    if ( rule.type == "token" ) {
 
-    }
+        let successful = compare(rule, tokens[index]) 
 
-    if (rule.type == "") {
+        if (successful) {
+            then()
+        } else {
+            fail()
+        }
 
+    } else if ( rule.type == "type" ) {
+        
+        parse(rule, 0, tokens, index,
+            thens,
+            fails
+        )
+
+    } else {
+        console.log(`Invalid type: ${type}`)
     }
 }
 
 let compare = (rule, token) => rule.name == token
 
-let parse = (rule, step, index, next, fail) => {
-    
-}
 
 let Parser = (baseType, tokens) => {
     
@@ -42,13 +52,13 @@ let Step = (rule) => ({
 })
 
 let LoopStep = (rule) => ({
-    type: "loop_step",
+    type: "step",
     quantifier: LOOP,
     rule: rule
 })
 
 let OptStep = (rule) => ({
-    type: "opt_step",
+    type: "step",
     quantifier: SKIP,
     rule: rule,
 })
