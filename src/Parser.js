@@ -25,10 +25,10 @@ let isLoop = (step) =>
  */
 let Parser = (baseType, tokens) => {
     let makeStep =
-        (step, then, fail, depth) =>
-            function self(index) {
+        (step, then, fail) =>
+            function self(index, state) {
                 if ( isSkipable(step) ) {
-                    then(index)
+                    then(index, state)
                 }
                 
                 parse(
@@ -37,7 +37,7 @@ let Parser = (baseType, tokens) => {
                         self :
                         then,
                     fail,
-                    depth + 2
+                    state
                 )
             }
 
@@ -47,34 +47,31 @@ let Parser = (baseType, tokens) => {
      * @param {number} index - what token were currently on
      * @param {parseCallback} next - called if success on match
      */
-    let parse = (rule, index, then, fail, depth=0) => {
+    let parse = (rule, index, then, fail, state) => {
 
         if ( rule.type == "type" ) {
 
-            console.debug(" ".repeat(depth) + rule.name + ",")
-
             let first = rule.steps.reduceRight(
-                (then, step) => makeStep(step, then, fail, depth),
+                (then, step) => makeStep(step, then, fail, state),
                 then
             )
 
-            first(index)
+            first(index, state + rule.name + " ► ")
 
         } else if ( rule.type == "token" ) {
 
             let successful = compare(rule, tokens[index]) 
 
-            console.debug(
-                " ".repeat(depth) +
-                rule.name + " " +
-                (successful ? "✔" : "x")
-            )
+            console.debug(`${state}${rule.name} ${successful ? "✔" : "x"}`)
 
             if (successful) {
-                then(index + 1)
+                // console.debug(" ".repeat(state.length) + "▼")
+
+                then(index + 1, " ".repeat(state.length))
+
                 return tokens[index]
             } else {
-                fail(index)
+                fail(index, " ".repeat(state.length))
             }
 
         }  else {
@@ -85,7 +82,8 @@ let Parser = (baseType, tokens) => {
     return parse(
         baseType, 0,
         (index) => {},
-        (index) => {}
+        (index) => {},
+        ""
     )
 }
 
