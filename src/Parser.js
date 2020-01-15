@@ -15,31 +15,29 @@ let isSkipable = (step) =>
     step.quantifier == LOOP ||
     step.quantifier == SKIP
 
+let isLoop = (step) => 
+    step.quantifier == LOOP
+
 /**
  * 
  * @param {*} baseType 
  * @param {*} tokens 
  */
 let Parser = (baseType, tokens) => {
-    let makeStep = (step, then, fail, depth) => [
-        /* success callback */
-        (index) => parse(
-            step.rule, index,
-            then,
-            fail,
-            depth+2
-        ),
-    
-        /* failure callback */
-        isSkipable(step) ?
-            (index) => parse(
-                step.rule, index,
-                isSkipable(step) ? then : fail,
-                fail,
-                depth+2
-            ) :
-            () => {}
-    ]
+    let makeStep =
+        (step, then, fail, depth) =>
+            function self(index) {
+                return parse(
+                    step.rule, index,
+                    isLoop(step) ?
+                        self :
+                        then,
+                    isSkipable(step) ?
+                        then :
+                        fail,
+                    depth + 2
+                )
+            }
 
     /**
      * 
@@ -53,9 +51,9 @@ let Parser = (baseType, tokens) => {
 
             console.debug(" ".repeat(depth) + rule.name + ",")
 
-            let [ first ] = rule.steps.reduceRight(
-                ([then, fail], step) => makeStep(step, then, fail, depth),
-                [then, fail]
+            let first = rule.steps.reduceRight(
+                (then, step) => makeStep(step, then, fail, depth),
+                then
             )
 
             first(index)
@@ -73,7 +71,7 @@ let Parser = (baseType, tokens) => {
             if (successful) {
                 then(index + 1)
             } else {
-                fail(index + 1)
+                fail(index)
             }
 
         }  else {
@@ -125,7 +123,7 @@ let r = Type({
     steps: [
         Step( Token("S") ),
         Step( Token("E") ),
-        Step( Token("S") )
+        LoopStep( Token("S") )
     ]
 })
 
@@ -138,4 +136,4 @@ let f = Type({
 
 //
 
-Parser(f, ["S","E","S"])
+Parser(f, ["S", "E", "S","S"])
