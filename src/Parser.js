@@ -27,14 +27,16 @@ let Parser = (baseType, tokens) => {
     let makeStep =
         (step, then, fail, depth) =>
             function self(index) {
-                return parse(
+                if ( isSkipable(step) ) {
+                    then(index)
+                }
+                
+                parse(
                     step.rule, index,
                     isLoop(step) ?
                         self :
                         then,
-                    isSkipable(step) ?
-                        then :
-                        fail,
+                    fail,
                     depth + 2
                 )
             }
@@ -70,6 +72,7 @@ let Parser = (baseType, tokens) => {
 
             if (successful) {
                 then(index + 1)
+                return tokens[index]
             } else {
                 fail(index)
             }
@@ -136,4 +139,8 @@ let f = Type({
 
 //
 
-Parser(f, ["S", "E", "S","S"])
+let output = Parser(f, ["S", "E", "S","S"])
+
+console.log("\n")
+
+console.log(output)
