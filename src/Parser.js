@@ -1,43 +1,98 @@
-let { Stack } = require('immutable');
+/**
+ * @callback parseCallback
+ * 
+ * @param {index} index - what token were currently on
+ */
 
-
-let parse = async (type, step, tokens, index, then, fail) => {
-    let { rule, quantifier } = type.pattern[step]
-
-    if ( rule.type == "token" ) {
-
-        let successful = compare(rule, tokens[index]) 
-
-        if (successful) {
-            then()
-        } else {
-            fail()
-        }
-
-    } else if ( rule.type == "type" ) {
-        
-        parse(rule, 0, tokens, index,
-            thens,
-            fails
-        )
-
-    } else {
-        console.log(`Invalid type: ${type}`)
-    }
-}
-
+/**
+ * 
+ * @param {Rule} rule 
+ * @param {Token} token 
+ */
 let compare = (rule, token) => rule.name == token
 
+let isSkipable = (step) =>
+    step.quantifier == LOOP ||
+    step.quantifier == SKIP
 
+/**
+ * 
+ * @param {*} baseType 
+ * @param {*} tokens 
+ */
 let Parser = (baseType, tokens) => {
+    let makeStep = (step, then, fail, depth) => [
+        /* success callback */
+        (index) => parse(
+            step.rule, index,
+            then,
+            fail,
+            depth+2
+        ),
     
+        /* failure callback */
+        isSkipable(step) ?
+            (index) => parse(
+                step.rule, index,
+                isSkipable(step) ? then : fail,
+                fail,
+                depth+2
+            ) :
+            () => {}
+    ]
+
+    /**
+     * 
+     * @param {Rule} rule - the rule to parse
+     * @param {number} index - what token were currently on
+     * @param {parseCallback} next - called if success on match
+     */
+    let parse = (rule, index, then, fail, depth=0) => {
+
+        if ( rule.type == "type" ) {
+
+            console.debug(" ".repeat(depth) + rule.name + ",")
+
+            let [ first ] = rule.steps.reduceRight(
+                ([then, fail], step) => makeStep(step, then, fail, depth),
+                [then, fail]
+            )
+
+            first(index)
+
+        } else if ( rule.type == "token" ) {
+
+            let successful = compare(rule, tokens[index]) 
+
+            console.debug(
+                " ".repeat(depth) +
+                rule.name + " " +
+                (successful ? "✔" : "x")
+            )
+
+            if (successful) {
+                then(index + 1)
+            } else {
+                fail(index + 1)
+            }
+
+        }  else {
+            console.log(`Invalid type: ${rule.type}`)
+        }
+    }
+
+    return parse(
+        baseType, 0,
+        (index) => {},
+        (index) => {}
+    )
 }
 
 let Token = (name) => ({type: "token", name}) 
 
-let Type = ({name, pattern}) => ({
+let Type = ({name, steps}) => ({
     type: "type",
-    name, pattern
+    name, steps
 })
 
 let NEXT = 0
@@ -67,20 +122,20 @@ let OptStep = (rule) => ({
 
 let r = Type({
     name: "r",
-    pattern: [
-        Step( Token("s") ),
-        Step( Token("e") ),
-        Step( Token("s") )
+    steps: [
+        Step( Token("S") ),
+        Step( Token("E") ),
+        Step( Token("S") )
     ]
 })
 
 let f = Type({
     name: "f",
-    pattern: [
+    steps: [
         LoopStep( r ),
     ]
 })
 
 //
 
-console.log( Parser(f, ["s","e","s"]) )
+Parser(f, ["S","E","S"])
