@@ -18,6 +18,8 @@ let isSkipable = (step) =>
 let isLoop = (step) => 
     step.quantifier == LOOP
 
+let Error = (msg) => ({type: "error", msg})
+
 /**
  * 
  * @param {*} baseType 
@@ -27,18 +29,22 @@ let Parser = (baseType, tokens) => {
     let makeStep =
         (step, then, fail) =>
             function self(index, state) {
+                let possibilities = []
+
                 if ( isSkipable(step) ) {
-                    then(index, state)
+                    possibilities.concat( then(index, state) )
                 }
                 
-                parse(
+                possibilities.push( parse(
                     step.rule, index,
                     isLoop(step) ?
                         self :
                         then,
                     fail,
                     state
-                )
+                ) )
+
+                return possibilities
             }
 
     /**
@@ -55,8 +61,11 @@ let Parser = (baseType, tokens) => {
                 (then, step) => makeStep(step, then, fail, state),
                 then
             )
-
-            first(index, state + rule.name + " ► ")
+            
+            return {
+                type: rule.name,
+                possibilities: first(index, state + rule.name + " ► ")
+            }
 
         } else if ( rule.type == "token" ) {
 
@@ -65,15 +74,18 @@ let Parser = (baseType, tokens) => {
             console.debug(`${state}${rule.name} ${successful ? "✔" : "x"}`)
 
             if (successful) {
-                // console.debug(" ".repeat(state.length) + "▼")
-
                 then(index + 1, " ".repeat(state.length))
 
-                return tokens[index]
+                return [
+                    tokens[index]
+                ]
             } else {
                 fail(index, " ".repeat(state.length))
-            }
 
+                return [
+                    Error(`expected ${rule.name}, got ${tokens[index]}.`)
+                ]
+            }
         }  else {
             console.log(`Invalid type: ${rule.type}`)
         }
@@ -82,7 +94,7 @@ let Parser = (baseType, tokens) => {
     return parse(
         baseType, 0,
         (index) => {},
-        (index) => {},
+        (index) => Error("Unexpected token"),
         ""
     )
 }
@@ -140,5 +152,9 @@ let f = Type({
 let output = Parser(f, ["S", "E", "S","S"])
 
 console.log("\n")
+
+const fs = require("fs-extra")
+
+fs.writeJSON("temp/out.json", output, {spaces: "\t"})
 
 console.log(output)
