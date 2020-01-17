@@ -51,10 +51,10 @@ let Parser = (baseType, tokens) => {
      * 
      * @param {Rule} rule - the rule to parse
      * @param {number} index - what token were currently on
-     * @param {parseCallback} theb - called if success on match
+     * @param {parseCallback} then - called if success on match
      * @param {parseCallback} fail - called if failure on match
      */
-    let parse = (rule, index, then, fail, state) => {
+    let parse = (rule, index, then, fail, state, parent) => {
 
         if ( rule.type == "type" ) {
 
@@ -73,12 +73,15 @@ let Parser = (baseType, tokens) => {
         } else if ( rule.type == "token" ) {
             let successful = compare(rule, tokens[index])
 
-            console.debug(`${state}${rule.name} ${successful ? "✔" : "x"}`)
+            console.debug(`${state}${rule.name} ${successful ? "✔" : "x"} (${index})`)
 
             if (successful) {
                 then(index + 1, " ".repeat(state.length+2))
-
-                return tokens[index]
+                
+                return ({
+                    parent: parent,
+                    value: tokens[index]
+                })
             } else {
                 fail(index, " ".repeat(state.length+2))
 
