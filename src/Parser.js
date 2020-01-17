@@ -51,7 +51,8 @@ let Parser = (baseType, tokens) => {
      * 
      * @param {Rule} rule - the rule to parse
      * @param {number} index - what token were currently on
-     * @param {parseCallback} next - called if success on match
+     * @param {parseCallback} theb - called if success on match
+     * @param {parseCallback} fail - called if failure on match
      */
     let parse = (rule, index, then, fail, state) => {
 
@@ -62,31 +63,28 @@ let Parser = (baseType, tokens) => {
                 then
             )
             
+            console.log(state + rule.name)
+
             return {
                 type: rule.name,
-                possibilities: first(index, state + rule.name + " ► ")
+                possibilities: first(index, state + "  ")
             }
 
         } else if ( rule.type == "token" ) {
-
-            let successful = compare(rule, tokens[index]) 
+            let successful = compare(rule, tokens[index])
 
             console.debug(`${state}${rule.name} ${successful ? "✔" : "x"}`)
 
             if (successful) {
-                then(index + 1, " ".repeat(state.length))
+                then(index + 1, " ".repeat(state.length+2))
 
-                return [
-                    tokens[index]
-                ]
+                return tokens[index]
             } else {
-                fail(index, " ".repeat(state.length))
+                fail(index, " ".repeat(state.length+2))
 
-                return [
-                    Error(`expected ${rule.name}, got ${tokens[index]}.`)
-                ]
+                return Error(`expected ${rule.name}, got ${tokens[index]}.`)
             }
-        }  else {
+        } else {
             console.log(`Invalid type: ${rule.type}`)
         }
     }
@@ -94,7 +92,7 @@ let Parser = (baseType, tokens) => {
     return parse(
         baseType, 0,
         (index) => {},
-        (index) => Error("Unexpected token"),
+        (index) => {},
         ""
     )
 }
