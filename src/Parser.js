@@ -1,3 +1,5 @@
+const { Stack } = require("immutable")
+
 /**
  * @callback parseCallback
  * 
@@ -20,9 +22,9 @@ let isLoop = (step) =>
 
 let Error = (msg) => ({type: "error", msg})
 
-let Node = (type, value, parent) => {
+let Node = (type, value, arr) => {
     let node = {type, value, children: []}
-    parent.children.push(node)
+    // arr.push(node)
     return node
 }
 
@@ -34,23 +36,20 @@ let Node = (type, value, parent) => {
 let Parser = (baseType, tokens) => {
     let makeStep =
         (step, then, fail) =>
-            function self(index, state, parent) {
-                let possibilities = []
-
-                if ( isSkipable(step) ) {
-                    possibilities.concat( then(index, state) )
-                }
+            function self(index, state) {
                 
-                possibilities.push( parse(
+                parse(
                     step.rule, index,
                     isLoop(step) ?
                         self :
                         then,
                     fail,
                     state
-                ) )
+                )
 
-                return possibilities
+                if ( isSkipable(step) ) {
+                    then(index, state)
+                }
             }
 
     /**
@@ -60,22 +59,19 @@ let Parser = (baseType, tokens) => {
      * @param {parseCallback} then - called if success on match
      * @param {parseCallback} fail - called if failure on match
      */
-    let parse = (rule, index, then, fail, state, parent) => {
+    let parse = (rule, index, then, fail, state) => {
 
         if ( rule.type == "type" ) {
-            let node = Node(
-                rule.name,
-                {},
-                parent
-            )
 
-            rule.steps.reduceRight(
+            let first = rule.steps.reduceRight(
                 (then, step) => makeStep(step, then, fail, state),
                 then
-            )()
+            )
 
-            return node
+            first(index, state)
+
         } else if ( rule.type == "token" ) {
+
             let successful = compare(rule, tokens[index])
 
             console.debug(`${state}${rule.name} ${successful ? "✔" : "x"} (${index})`)
@@ -84,19 +80,14 @@ let Parser = (baseType, tokens) => {
                 then(
                     index + 1,
                     " ".repeat(state.length+2)
-                    
-                )
-                
-                return Node(
-                    "token",
-                    tokens[index],
-                    parent
                 )
             } else {
-                fail(index, " ".repeat(state.length+2))
-
-                return Error(`expected ${rule.name}, got ${tokens[index]}.`)
+                fail(
+                    index,
+                    " ".repeat(state.length+2)
+                )
             }
+
         } else {
             console.log(`Invalid type: ${rule.type}`)
         }
@@ -104,10 +95,9 @@ let Parser = (baseType, tokens) => {
 
     return parse(
         baseType, 0,
-        (index) => {},
-        (index) => {},
-        "",
-        {children: []}
+        new Stack(),
+        new Stack(),
+        ""
     )
 }
 
@@ -167,6 +157,6 @@ console.log("\n")
 
 const fs = require("fs-extra")
 
-fs.writeJSON("temp/out.json", output, {spaces: "\t"})
+// fs.writeJSON("temp/out.json", output, {spaces: "\t"})
 
 console.log(output)
