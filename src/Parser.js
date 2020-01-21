@@ -20,6 +20,12 @@ let isLoop = (step) =>
 
 let Error = (msg) => ({type: "error", msg})
 
+let Node = (type, value, parent) => {
+    let node = {type, value, children: []}
+    parent.children.push(node)
+    return node
+}
+
 /**
  * 
  * @param {*} baseType 
@@ -28,7 +34,7 @@ let Error = (msg) => ({type: "error", msg})
 let Parser = (baseType, tokens) => {
     let makeStep =
         (step, then, fail) =>
-            function self(index, state) {
+            function self(index, state, parent) {
                 let possibilities = []
 
                 if ( isSkipable(step) ) {
@@ -57,31 +63,35 @@ let Parser = (baseType, tokens) => {
     let parse = (rule, index, then, fail, state, parent) => {
 
         if ( rule.type == "type" ) {
+            let node = Node(
+                rule.name,
+                {},
+                parent
+            )
 
-            let first = rule.steps.reduceRight(
+            rule.steps.reduceRight(
                 (then, step) => makeStep(step, then, fail, state),
                 then
-            )
-            
-            console.log(state + rule.name)
+            )()
 
-            return {
-                type: rule.name,
-                possibilities: first(index, state + "  ")
-            }
-
+            return node
         } else if ( rule.type == "token" ) {
             let successful = compare(rule, tokens[index])
 
             console.debug(`${state}${rule.name} ${successful ? "✔" : "x"} (${index})`)
 
             if (successful) {
-                then(index + 1, " ".repeat(state.length+2))
+                then(
+                    index + 1,
+                    " ".repeat(state.length+2)
+                    
+                )
                 
-                return ({
-                    parent: parent,
-                    value: tokens[index]
-                })
+                return Node(
+                    "token",
+                    tokens[index],
+                    parent
+                )
             } else {
                 fail(index, " ".repeat(state.length+2))
 
@@ -96,7 +106,8 @@ let Parser = (baseType, tokens) => {
         baseType, 0,
         (index) => {},
         (index) => {},
-        ""
+        "",
+        {children: []}
     )
 }
 
