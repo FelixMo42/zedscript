@@ -28,47 +28,54 @@ let Node = (type, value, arr) => {
     return node
 }
 
+(index) => {
+
+}
+
 /**
  * 
  * @param {*} baseType 
  * @param {*} tokens 
  */
 let Parser = (baseType, tokens) => {
-    let makeStep =
-        (step, then, fail) =>
-            function self(index, state) {
-                
-                parse(
-                    step.rule, index,
-                    isLoop(step) ?
-                        self :
-                        then,
-                    fail,
-                    state
-                )
-
-                if ( isSkipable(step) ) {
-                    then(index, state)
-                }
-            }
-
     /**
      * 
      * @param {Rule} rule - the rule to parse
      * @param {number} index - what token were currently on
-     * @param {parseCallback} then - called if success on match
-     * @param {parseCallback} fail - called if failure on match
+     * @param {Stack} then - called if success on match
+     * @param {Stack} fail - called if failure on match
      */
-    let parse = (rule, index, then, fail, state) => {
+    let parse = (rule, index, then, fail, state, parent) => {
 
         if ( rule.type == "type" ) {
 
-            let first = rule.steps.reduceRight(
-                (then, step) => makeStep(step, then, fail, state),
-                then
-            )
+            rule.steps.reduceRight(
+                ([then, fail], step) => {
+                    let node = {values: []}
+                    parent.push(node)
 
-            first(index, state)
+                    step.quantifier == NEXT
+                        new Stack()
+                        fail
+
+                    step.quantifier == LOOP
+                        then.push()
+                        fail
+
+                    step.quantifier == SKIP
+                        then
+                        fail
+
+                    parse(
+                        step.rule,
+                        index,
+                        then,
+                        fail,
+                        node.values
+                    )
+                },
+                [then, fail]
+            )
 
         } else if ( rule.type == "token" ) {
 
@@ -77,15 +84,9 @@ let Parser = (baseType, tokens) => {
             console.debug(`${state}${rule.name} ${successful ? "✔" : "x"} (${index})`)
 
             if (successful) {
-                then(
-                    index + 1,
-                    " ".repeat(state.length+2)
-                )
+                then(index + 1)
             } else {
-                fail(
-                    index,
-                    " ".repeat(state.length+2)
-                )
+                fail(index)
             }
 
         } else {
@@ -97,7 +98,8 @@ let Parser = (baseType, tokens) => {
         baseType, 0,
         new Stack(),
         new Stack(),
-        ""
+        "",
+        []
     )
 }
 
