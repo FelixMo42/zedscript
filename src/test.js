@@ -1,60 +1,33 @@
 const { Stack } = require("immutable")
 
+const NEXT = 0
+const LOOP = 1
+const SKIP = 2
+
 let tokens = ["I", "E", "I", "I"]
 
-function Parse(rule, index, next, fail, parent) {
+function Parse(rule, index, then, fail, parent) {
     if (rule.type == "pattern") {
-        let node = {
-            type: rule.name,
-            next: []
-        }
+        let [first, next] = rule.steps.reduceRight(
+            ([then, fail], step) => {
+                let parent = []
 
-        parent.push(node)
-
-        Parse({
-            type: "step",
-            step: 0,
-            steps: rule.steps
-        }, index, next, fail, node.next)
-    }
-
-    if (rule.type == "step") {
-        let node = {
-            type: "step",
-            value: [],
-            next: []
-        }
-
-        parent.push(node)
-
-        console.log(rule.steps.length < rule.step - 1)
-
-        if (rule.steps.length < rule.step - 1) {
-            Parse(
-                rule.steps[rule.step],
-                index,
-                new Stack([{
-                    rule: {
-                        type: "step",
-                        step: rule.step + 1,
-                        steps: rule.steps
-                    },
-                    next: next,
+                return {
+                    rule: step.rule,
+                    then: then,
                     fail: fail,
-                    parent: node.next
-                }]),
-                fail,
-                node.value
-            )
-        } else {
-            next.forEach(state => Parse(
-                state.rule,
-                      index,
-                state.next,
-                state.fail,
-                state.parent
-            ) )
-        }
+                    parent
+                }
+            },
+            [ [] ]
+        )
+
+        parent.push({
+            type: rule.name,
+            next: next
+        })
+
+        Parse(first, index, next, fail, node.next)
     }
 
     if (rule.type == "token") {
@@ -99,7 +72,8 @@ Parse(
             },
             {
                 type: "token",
-                name: "I"
+                name: "I",
+                mode: LOOP
             },
         ]
     },
@@ -109,7 +83,14 @@ Parse(
     top
 )
 
-/////
+//////////////////////////////////////////////////////////////////////////////////
 
-console.log(JSON.stringify(top, null, " "))
-require("fs").writeFileSync("./temp/out.json", JSON.stringify(top, null, "\t"))
+require("fs").writeFileSync("./temp/out.json", JSON.stringify(top[0], null, "\t"))
+
+let pos = top[0]
+while (pos !== undefined) {
+    if ("value" in pos) {
+        console.log(pos.value)
+    }
+    pos = pos.next[0]
+}
