@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "main": "src/build.js",
   "dependencies": {
+    "chalk": "^3.0.0",
     "fs-extra": "^8.1.0",
     "immutable": "^4.0.0-rc.12",
     "lodash": "^4.17.15",
