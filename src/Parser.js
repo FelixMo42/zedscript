@@ -1,164 +1,122 @@
-const { Stack } = require("immutable")
+const { red } = require("chalk")
 
-/**
- * @callback parseCallback
- * 
- * @param {index} index - what token were currently on
- */
+module.exports = (tokens) => {
+    let error = (msg, index) => () => {
+        totalSuccses = false
 
-/**
- * 
- * @param {Rule} rule 
- * @param {Token} token 
- */
-let compare = (rule, token) => rule.name == token
+        console.log(`${red("Error:")} ${msg}\n`)
 
-let isSkipable = (step) =>
-    step.quantifier == LOOP ||
-    step.quantifier == SKIP
+        let string1 = ""
+        let string2 = ""
 
-let isLoop = (step) => 
-    step.quantifier == LOOP
+        for (let i in tokens) {
+            let token = tokens[i]
 
-let Error = (msg) => ({type: "error", msg})
-
-let Node = (type, value, arr) => {
-    let node = {type, value, children: []}
-    // arr.push(node)
-    return node
-}
-
-(index) => {
-
-}
-
-/**
- * 
- * @param {*} baseType 
- * @param {*} tokens 
- */
-let Parser = (baseType, tokens) => {
-    /**
-     * 
-     * @param {Rule} rule - the rule to parse
-     * @param {number} index - what token were currently on
-     * @param {Stack} then - called if success on match
-     * @param {Stack} fail - called if failure on match
-     */
-    let parse = (rule, index, then, fail, state, parent) => {
-
-        if ( rule.type == "type" ) {
-
-            rule.steps.reduceRight(
-                ([then, fail], step) => {
-                    let node = {values: []}
-                    parent.push(node)
-
-                    step.quantifier == NEXT
-                        new Stack()
-                        fail
-
-                    step.quantifier == LOOP
-                        then.push()
-                        fail
-
-                    step.quantifier == SKIP
-                        then
-                        fail
-
-                    parse(
-                        step.rule,
-                        index,
-                        then,
-                        fail,
-                        node.values
-                    )
-                },
-                [then, fail]
-            )
-
-        } else if ( rule.type == "token" ) {
-
-            let successful = compare(rule, tokens[index])
-
-            console.debug(`${state}${rule.name} ${successful ? "✔" : "x"} (${index})`)
-
-            if (successful) {
-                then(index + 1)
-            } else {
-                fail(index)
-            }
-
-        } else {
-            console.log(`Invalid type: ${rule.type}`)
+            string1 += token.body + " "
+            string2 += (i == index ? "^" : " ").repeat(token.body.length) + " "
         }
+
+        console.log(string1)
+        console.log(string2)
+
+        console.log("\n")
     }
 
-    return parse(
-        baseType, 0,
-        new Stack(),
-        new Stack(),
-        "",
-        []
-    )
+    let Success = (value, index) => ({success: true, value, index})
+    let Failure = (value, index) => ({success: false, value, index})
+
+    let parse = (rule, index) => {
+        if (rule.type == "Sequence") {
+            let ogIndex = index
+
+            let node = {}
+
+            let parseStep = (i) => {
+                let step = rule.steps[i]
+
+                let match = parse(step, index)
+
+                if ( match.success ) {
+                    if ( "as" in step ) {
+                        node[ step.as ] = match.value
+                    }
+
+                    index = match.index
+                }
+
+                return match
+            }
+
+            let match = parseStep(0)
+
+            if ( !match.success ) {
+                return Failure(match.value, ogIndex)
+            }
+
+            for (let i = 1; i < rule.steps.length; i++) {
+                let match = parseStep(i)
+
+                if ( !match.success ) {
+                    match.value()
+
+                    return Success(node, index)
+                }
+            }
+
+            return Success(node, index)
+        }
+
+        if (rule.type == "Parallel") {
+            for (let step of rule.steps) {
+                let match = parse(step, index)
+
+                if ( match.success ) {
+                    return match
+                }
+            }
+
+            if (index < tokens.length) {
+                error(`Unexpected ${tokens[index].name}`, index)()
+
+                return Success(null, index + 1)
+            } else {
+                return Failure(null, index)
+            }
+        }
+
+        if (rule.type == "Skip") {
+            return Success(0, index)
+        }
+
+        if (rule.type == "Loop") {
+            let values = []
+
+            while (true) {
+                let match = parse(rule.step, index)
+
+                if ( !match.success ) {
+                    break
+                }
+
+                index = match.index
+
+                values.push( match.value )
+            }
+
+            return Success(values, index)
+        }
+
+        if (rule.type == "Token") {
+            return index < tokens.length && rule.name == tokens[index].name ?
+                Success(tokens[index].body, index + 1) :
+                Failure(
+                    error(`Got ${index < tokens.length ? tokens[index].name : "EOF"}, expected ${rule.name}`, index),
+                    index
+                )
+        }
+
+        console.error(`${red("Error: ")} Invalid rule type: ${rule.type}`)
+    }
+
+    return parse
 }
-
-let Token = (name) => ({type: "token", name}) 
-
-let Type = ({name, steps}) => ({
-    type: "type",
-    name, steps
-})
-
-let NEXT = 0
-let LOOP = 1
-let SKIP = 2
-let FAIL = 3
-
-let Step = (rule) => ({
-    type: "step",
-    quantifier: NEXT,
-    rule: rule,
-})
-
-let LoopStep = (rule) => ({
-    type: "step",
-    quantifier: LOOP,
-    rule: rule
-})
-
-let OptStep = (rule) => ({
-    type: "step",
-    quantifier: SKIP,
-    rule: rule,
-})
-
-///
-
-let r = Type({
-    name: "r",
-    steps: [
-        Step( Token("S") ),
-        Step( Token("E") ),
-        LoopStep( Token("S") )
-    ]
-})
-
-let f = Type({
-    name: "f",
-    steps: [
-        LoopStep( r ),
-    ]
-})
-
-//
-
-let output = Parser(f, ["S", "E", "S","S"])
-
-console.log("\n")
-
-const fs = require("fs-extra")
-
-// fs.writeJSON("temp/out.json", output, {spaces: "\t"})
-
-console.log(output)
