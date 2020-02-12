@@ -23,7 +23,7 @@ let rules = [
     Keyword( "let" ),
     Keyword( "if" ),
 
-    Keyword( "plus", "+" ),
+    Keyword( "equal", "=" )
 ]
 
 function log(bla) {
