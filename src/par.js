@@ -3,18 +3,15 @@ const Parser = require("./Parser")
 // tokens
 
 let parse = Parser(((file) => {
-    let parse = Parser(file)
-
     let Token = (name, body) => ({name, body})
 
-    return parse({}, 0)
-    // [
-    //     Token("let", "let"),
-    //     Token("word", "a"),
-    //     Token("equal", "="),
-    //     Token("number", "12.5"),
-    //     Token("word", "abc")
-    // ]
+    return [
+        Token("let", "let"),
+        Token("word", "a"),
+        Token("equal", "="),
+        Token("number", "12.5"),
+        Token("word", "abc")
+    ]
 })("let a = 12.5 abc"))
 
 // rules
