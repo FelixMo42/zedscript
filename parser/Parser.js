@@ -56,10 +56,16 @@ module.exports = (tokens) => {
             for (let i = 1; i < rule.steps.length; i++) {
                 let match = parseStep(i)
 
-                if ( !match.success ) {
+                while ( !match.success ) {
                     match.value()
 
-                    return Success(node, index)
+                    index += 1
+
+                    if (index >= tokens.length) {
+                        return Success(node, index)
+                    }
+
+                    match = parseStep(i)
                 }
             }
 
@@ -78,7 +84,7 @@ module.exports = (tokens) => {
             if (index < tokens.length) {
                 error(`Unexpected ${tokens[index].name}`, index)()
 
-                return Success(null, index + 1)
+                return parse(rule, index + 1)
             } else {
                 return Failure(null, index)
             }
