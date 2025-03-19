@@ -4,6 +4,7 @@ export interface FuncNode {
     kind: "FUNC_NODE"
     name: string
     body: StatmentNode[]
+    params: string[]
 }
 
 export type StatmentNode = ReturnNode | AssignmentNode | IfNode
@@ -26,7 +27,13 @@ export interface ReturnNode {
     value: ExprNode
 }
 
-export type ExprNode = NumberNode | IdentNode | OpNode | TernaryNode
+export type ExprNode = NumberNode | StringNode | IdentNode | OpNode | TernaryNode | CallNode
+
+export interface CallNode {
+    kind: "CALL_NODE",
+    func: ExprNode,
+    args: ExprNode[],
+}
 
 export type Op = "+" | "-" | "/" | "*" | "==" | ">" | "<" | ">=" | "<="
 
@@ -35,6 +42,11 @@ export interface OpNode {
     op: Op
     a: ExprNode
     b: ExprNode
+}
+
+export interface StringNode {
+    kind: "STRING_NODE"
+    value: string
 }
 
 export interface NumberNode {
@@ -54,22 +66,51 @@ export interface TernaryNode {
     b: ExprNode,
 }
 
-export function parse_file(tks: TokenStream): FuncNode | undefined {
+// TOP LEVEL //
+
+export function parse_file(tks: TokenStream): FuncNode[] {
+    const funcs = []
+
+    while (true) {
+        const func = parse_func(tks)
+        if (!func) break
+        funcs.push(func)
+    }
+
+    return funcs
+}
+
+export function parse_func(tks: TokenStream): FuncNode | undefined {
     const save = tks.save()
 
     if (tks.take("fn")) {
         const name = tks.next()
+
+        // params
         tks.take("(")
+        const params: string[] = []
+        while (!tks.peak(")")) {
+            params.push(tks.take("<ident>")!)
+            tks.take(",")
+        }
         tks.take(")")
+
+        // body
         tks.take("{")
         const body = parse_stmts(tks)
         tks.take("}")
-        return { kind: "FUNC_NODE", name, body }
+
+        // returns
+        return { kind: "FUNC_NODE", name, body, params }
     }
     
     tks.load(save)
     return undefined
 }
+
+
+
+// STATMENTS //
 
 function parse_stmts(tks: TokenStream): StatmentNode[] {
     const stmts = []
@@ -79,33 +120,6 @@ function parse_stmts(tks: TokenStream): StatmentNode[] {
         stmts.push(stmt)
     }
     return stmts
-}
-
-function parse_if(tks: TokenStream): StatmentNode | undefined {
-    if (tks.take("if")) {
-        const cond = parse_expr(tks)!
-        tks.take("{")
-        const a = parse_stmts(tks)
-        tks.take("}")
-        let b: StatmentNode[] = []
-
-        if (tks.take("else")) {
-            if (tks.peak("if")) {
-                b = [parse_if(tks)!]
-            } else {
-                tks.take("{")
-                b = parse_stmts(tks)
-                tks.take("}") 
-            }            
-        }
-
-        return {
-            kind: "IF_NODE",
-            cond,
-            a,
-            b
-        }
-    }
 }
 
 function parse_stmt(tks: TokenStream): StatmentNode | undefined {
@@ -135,34 +149,34 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     return undefined
 }
 
-function parse_value(tks: TokenStream): ExprNode | undefined {
-    const save = tks.save()
+function parse_if(tks: TokenStream): StatmentNode | undefined {
+    if (tks.take("if")) {
+        const cond = parse_expr(tks)!
+        tks.take("{")
+        const a = parse_stmts(tks)
+        tks.take("}")
+        let b: StatmentNode[] = []
 
-    const num = tks.take("<number>")
-    if (num) {
+        if (tks.take("else")) {
+            if (tks.peak("if")) {
+                b = [parse_if(tks)!]
+            } else {
+                tks.take("{")
+                b = parse_stmts(tks)
+                tks.take("}") 
+            }            
+        }
+
         return {
-            kind: "NUMBER_NODE",
-            value: Number(num)
+            kind: "IF_NODE",
+            cond,
+            a,
+            b
         }
     }
-
-    const ident = tks.take("<ident>")
-    if (ident) {
-        return {
-            kind: "IDENT_NODE",
-            value: ident
-        }
-    }
-
-    if (tks.take("(")) {
-        const expr = parse_expr(tks)
-        tks.take(")")
-        return expr
-    }
-
-    tks.load(save)
-    return undefined
 }
+
+// EXPRESSIONS //
 
 function parse_expr(tks: TokenStream): ExprNode | undefined  {
     return parse_ternary(tks)
@@ -195,8 +209,60 @@ function parse_add(tks: TokenStream): ExprNode | undefined  {
 }
 
 function parse_mul(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_value, parse_mul, ["*", "/"])
+    return parse_op(tks, parse_call, parse_mul, ["*", "/"])
 }
+
+function parse_call(tks: TokenStream): ExprNode | undefined {
+    const value = parse_value(tks)!
+
+    if (tks.take("(")) {
+        const args = []
+        while (!tks.peak(")")) {
+            args.push(parse_expr(tks)!)
+            tks.take(",")
+        }
+        tks.take(")")
+
+        return {
+            kind: "CALL_NODE",
+            func: value,
+            args,
+        }
+    }
+
+    return value
+}
+
+function parse_value(tks: TokenStream): ExprNode | undefined {
+    const save = tks.save()
+
+    const num = tks.take("<number>")
+    if (num) {
+        return {
+            kind: "NUMBER_NODE",
+            value: Number(num)
+        }
+    }
+
+    const ident = tks.take("<ident>")
+    if (ident) {
+        return {
+            kind: "IDENT_NODE",
+            value: ident
+        }
+    }
+
+    if (tks.take("(")) {
+        const expr = parse_expr(tks)
+        tks.take(")")
+        return expr
+    }
+
+    tks.load(save)
+    return undefined
+}
+
+// UTIL //
 
 function parse_op(tks: TokenStream, sub: (tks: TokenStream) => ExprNode | undefined, eqv: (tks: TokenStream) => ExprNode | undefined, ops: Op[]): ExprNode | undefined {
     const a = sub(tks)

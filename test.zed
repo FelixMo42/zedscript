@@ -1,9 +1,7 @@
-fn main() {
-    if true {
-        return 4
-    } else if false {
-        return 2
-    } else {
-        return 3
+fn the_number_six() {
+        return 6
     }
-}
+
+    fn main() {
+        return the_number_six() * 7
+    }

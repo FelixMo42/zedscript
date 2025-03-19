@@ -3,11 +3,13 @@ import { assertEquals } from "jsr:@std/assert";
 import { lexer } from "./lang/lexer.ts";
 import { parse } from "./lang/parse.ts";
 import { runit, type Value } from "./lang/runit.ts";
+import { build } from "./lang/build.ts";
 
 function run(src: string) {
     const tks = lexer(src)
     const ast = parse(tks)!
-    const out = runit(ast)
+    const bin = build(ast)
+    const out = runit(bin)
     return out
 }
 
@@ -57,14 +59,12 @@ Deno.test("ternary else if", () => assert_stmt(`
     10 if 0 > 9000 else
     0
 `, 0))
-
-// Open
 Deno.test("if with return", () => assertEquals(run(`
     fn main() {
         if true {
             return 4
         }
-   
+
         return 5
     }
 `), 4))
@@ -84,6 +84,33 @@ Deno.test("if else with var assignment", () => assertEquals(run(`
         } else {
             a = 2
         }
+
         return a
     }
 `), 2))
+Deno.test("built in function call", () => assertEquals(run(`
+    fn main() {
+        return max(42, 9000)
+    }
+`), 9000))
+Deno.test("two functions", () => assertEquals(run(`
+    fn the_number_six() {
+        return 6
+    }
+
+    fn main() {
+        return the_number_six() * 7
+    }
+`), 42))
+Deno.test("function paramaters", () => assertEquals(run(`
+    fn add(a, b) {
+        return a + b
+    }
+
+    fn main() {
+        return add(40, 2)
+    }
+`), 42))
+
+// Open
+Deno.test(`"hi"`, () => assert_stmt(`"hi"`, "hi"))
