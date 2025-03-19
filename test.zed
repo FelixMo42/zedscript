@@ -1,0 +1,9 @@
+fn main() {
+    if true {
+        return 4
+    } else if false {
+        return 2
+    } else {
+        return 3
+    }
+}
