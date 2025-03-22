@@ -1,4 +1,4 @@
-import type { AssignmentNode, ExprNode, FuncNode, ReturnNode, StatmentNode } from "./parse.ts";
+import type { AssignmentNode, ExprNode, FuncNode, ParamNode, ReturnNode, StatmentNode } from "./parse.ts";
 
 export type Statment = Branch | Jump | AssignmentNode | ReturnNode;
 
@@ -17,7 +17,7 @@ export interface Branch {
 export interface Fn {
     name: string
     blocks: Statment[][]
-    params: string[]
+    params: ParamNode[]
 }
 
 function build_block(
@@ -74,8 +74,3 @@ function build_fn(ast: FuncNode): Fn {
 export function build(ast: FuncNode[]): Fn[] {
     return ast.map(func_node => build_fn(func_node))
 }
-
-// open ended up questions
-// jira
-
-

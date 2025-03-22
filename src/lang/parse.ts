@@ -1,10 +1,16 @@
 import type { TokenStream } from "./lexer.ts";
 
+export interface ParamNode {
+    kind: "PARAM_NODE",
+    name: string,
+    type: ExprNode,
+}
+
 export interface FuncNode {
     kind: "FUNC_NODE"
     name: string
     body: StatmentNode[]
-    params: string[]
+    params: ParamNode[]
 }
 
 export type StatmentNode = ReturnNode | AssignmentNode | IfNode
@@ -27,12 +33,18 @@ export interface ReturnNode {
     value: ExprNode
 }
 
-export type ExprNode = NumberNode | StringNode | IdentNode | OpNode | TernaryNode | CallNode
+export type ExprNode = ArrayNode | IndexNode | NumberNode | StringNode | IdentNode | OpNode | TernaryNode | CallNode
 
 export interface CallNode {
     kind: "CALL_NODE",
     func: ExprNode,
     args: ExprNode[],
+}
+
+export interface IndexNode {
+    kind: "INDEX_NODE"
+    value: ExprNode
+    index: string
 }
 
 export type Op = "+" | "-" | "/" | "*" | "==" | ">" | "<" | ">=" | "<="
@@ -42,6 +54,11 @@ export interface OpNode {
     op: Op
     a: ExprNode
     b: ExprNode
+}
+
+export interface ArrayNode {
+    kind: "ARRAY_NODE"
+    value: ExprNode[]
 }
 
 export interface StringNode {
@@ -88,9 +105,13 @@ export function parse_func(tks: TokenStream): FuncNode | undefined {
 
         // params
         tks.take("(")
-        const params: string[] = []
+        const params: ParamNode[] = []
         while (!tks.peak(")")) {
-            params.push(tks.take("<ident>")!)
+            params.push({
+                kind: "PARAM_NODE",
+                name: tks.take("<ident>")!,
+                type: parse_expr(tks)!,
+            })
             tks.take(",")
         }
         tks.take(")")
@@ -107,8 +128,6 @@ export function parse_func(tks: TokenStream): FuncNode | undefined {
     tks.load(save)
     return undefined
 }
-
-
 
 // STATMENTS //
 
@@ -213,7 +232,7 @@ function parse_mul(tks: TokenStream): ExprNode | undefined  {
 }
 
 function parse_call(tks: TokenStream): ExprNode | undefined {
-    const value = parse_value(tks)!
+    const value = parse_index(tks)!
 
     if (tks.take("(")) {
         const args = []
@@ -233,14 +252,54 @@ function parse_call(tks: TokenStream): ExprNode | undefined {
     return value
 }
 
+function parse_index(tks: TokenStream): ExprNode | undefined {
+    const value = parse_value(tks)!
+
+    if (tks.take(".")) {
+        const index = tks.take("<ident>")!
+
+        return {
+            kind: "INDEX_NODE",
+            value,
+            index
+        }
+    }
+
+    return value
+}
+
 function parse_value(tks: TokenStream): ExprNode | undefined {
     const save = tks.save()
+
+    if (tks.take("[")) {
+        const value = []
+
+        while (!tks.peak("]")) {
+            value.push(parse_expr(tks)!)
+            tks.take(",")
+        }
+
+        tks.take("]")
+
+        return {
+            kind: "ARRAY_NODE",
+            value
+        }
+    }
 
     const num = tks.take("<number>")
     if (num) {
         return {
             kind: "NUMBER_NODE",
             value: Number(num)
+        }
+    }
+
+    const text = tks.take("<string>")
+    if (text) {
+        return {
+            kind: "STRING_NODE",
+            value: text
         }
     }
 

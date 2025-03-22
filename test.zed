@@ -1,7 +1,15 @@
-fn the_number_six() {
-        return 6
-    }
+type Token {
+    index: number
+    size: number
+}
 
-    fn main() {
-        return the_number_six() * 7
-    }
+fn main() {
+    tokens = []
+
+    tokens.push(Token {
+        index = 0
+        size = 10
+    })
+
+    return tokens
+}

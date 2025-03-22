@@ -3,7 +3,7 @@
 import type { Fn } from "./build.ts";
 import type { ExprNode } from "./parse.ts";
 
-export type Value = number | string | boolean | Function
+export type Value = number | string | boolean | Function | Value[]
 
 interface Ctx {
     get(name: string): Value | undefined
@@ -55,7 +55,7 @@ export function runit(fns: Fn[], func_name = "main") {
             const func_ctx = ctx.sub()
 
             for (let i = 0; i < args.length; i++) {
-                func_ctx.set(fn.params[i], args[i])
+                func_ctx.set(fn.params[i].name, args[i])
             }
 
             return run_func(fn, func_ctx)
@@ -109,7 +109,11 @@ function run_expr(n: ExprNode, ctx: Ctx): Value {
         }
     }
 
-    if (n.kind === "NUMBER_NODE") {
+    if (n.kind === "ARRAY_NODE") {
+        return n.value.map(n => run_expr(n, ctx))
+    }
+
+    if (n.kind === "NUMBER_NODE" || n.kind === "STRING_NODE") {
         return n.value
     }
 
