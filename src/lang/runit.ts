@@ -1,12 +1,11 @@
 // deno-lint-ignore-file ban-types
 
 import type { Fn } from "./build.ts";
-import type { ExprNode } from "./parse.ts";
 
 export type Value = number | string | boolean | Function | Value[]
 
 interface Ctx {
-    get(name: string): Value | undefined
+    get(name: string | number): Value | undefined
     set(name: string, value: Value): void
     sub(): Ctx
 }
@@ -15,7 +14,8 @@ function Ctx(parent: Ctx) {
     const vars = new Map()
 
     return {
-        get(name: string) {
+        get(name: string | number) {
+            if (typeof name == "number") return name
             return vars.get(name) ?? parent.get(name)
         },
         set(name: string, value: Value) {
@@ -32,7 +32,20 @@ function builtin_ctx(): Ctx {
 
     vars.set("true", true)
     vars.set("false", false)
+
     vars.set("max", Math.max)
+    vars.set("int::pow", Math.pow)
+
+    vars.set("+", (a: number, b: number) => a + b)
+    vars.set("-", (a: number, b: number) => a - b)
+    vars.set("*", (a: number, b: number) => a * b)
+    vars.set("/", (a: number, b: number) => a / b)
+
+    vars.set("==", (a: number, b: number) => a == b)
+    vars.set(">", (a: number, b: number) => a > b)
+    vars.set("<", (a: number, b: number) => a < b)
+    vars.set(">=", (a: number, b: number) => a >= b)
+    vars.set("<=", (a: number, b: number) => a <= b)
 
     return {
         get(name: string) {
@@ -68,76 +81,28 @@ export function runit(fns: Fn[], func_name = "main") {
 function run_func(n: Fn, ctx: Ctx) {
     let block = 0
     while (true) {
-        for (const stmt of n.blocks[block++]) {
-            if (stmt.kind === "ASSIGNMENT_NODE") {
-                ctx.set(stmt.name, run_expr(stmt.value, ctx))
+        for (const op of n.blocks[block++]) {
+            if (op.kind == "ASSIGN_OP") {
+                ctx.set(op.name, ctx.get(op.value)!)
             }
-
-            if (stmt.kind === "RETURN_NODE") {
-                return run_expr(stmt.value, ctx)
+            if (op.kind == "RETURN_OP") {
+                return ctx.get(op.value)
             }
-
-            if (stmt.kind === "BRANCH") {
-                if (run_expr(stmt.cond, ctx)) {
-                    block = stmt.a
+            if (op.kind == "CALLFN_OP") {
+                ctx.set(op.name, (ctx.get(op.func) as Function)(
+                    ...op.args.map(arg => ctx.get(arg))
+                ))
+            }
+            if (op.kind == "BRANCH_OP") {
+                if (ctx.get(op.cond)) {
+                    block = op.a
                 } else {
-                    block = stmt.b
+                    block = op.b
                 }
-
-                break
             }
-
-            if (stmt.kind === "JUMP") {
-                block = stmt.target
-                break
+            if (op.kind === "JUMPTO_OP") {
+                block = op.jump
             }
         }
     }
-}
-
-function run_expr(n: ExprNode, ctx: Ctx): Value {
-    if (n.kind === "CALL_NODE") {
-        const func = (run_expr(n.func, ctx) as Function)
-        return func(...n.args.map(arg => run_expr(arg, ctx)))
-    }
-
-    if (n.kind === "TERNARY_NODE") {
-        if (run_expr(n.cond, ctx) === true) {
-            return run_expr(n.a, ctx)
-        } else {
-            return run_expr(n.b, ctx)
-        }
-    }
-
-    if (n.kind === "ARRAY_NODE") {
-        return n.value.map(n => run_expr(n, ctx))
-    }
-
-    if (n.kind === "NUMBER_NODE" || n.kind === "STRING_NODE") {
-        return n.value
-    }
-
-    if (n.kind === "IDENT_NODE") {
-        const value = ctx.get(n.value)
-        if (value === undefined) {
-            throw new Error(`Attempt to use unassigned var "${n.value}!"`)
-        }
-        return value
-    }
-
-    if (n.kind === "OP_NODE") {
-        if (n.op === "+") return (run_expr(n.a, ctx) as number) + (run_expr(n.b, ctx) as number)
-        if (n.op === "-") return (run_expr(n.a, ctx) as number) - (run_expr(n.b, ctx) as number)
-        if (n.op === "*") return (run_expr(n.a, ctx) as number) * (run_expr(n.b, ctx) as number)
-        if (n.op === "/") return (run_expr(n.a, ctx) as number) / (run_expr(n.b, ctx) as number)
-
-        if (n.op === ">") return (run_expr(n.a, ctx) as number) > (run_expr(n.b, ctx) as number)
-        if (n.op === "<") return (run_expr(n.a, ctx) as number) < (run_expr(n.b, ctx) as number)
-        if (n.op === ">=") return (run_expr(n.a, ctx) as number) >= (run_expr(n.b, ctx) as number)
-        if (n.op === "<=") return (run_expr(n.a, ctx) as number) <= (run_expr(n.b, ctx) as number)
-
-        if (n.op === "==") return run_expr(n.a, ctx) == run_expr(n.b, ctx)
-    }
-
-    throw new Error("UNREACHABLE!!!!")
 }

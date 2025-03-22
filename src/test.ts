@@ -102,8 +102,6 @@ Deno.test("two functions", () => assertEquals(run(`
         return the_number_six() * 7
     }
 `), 42))
-
-// Open
 Deno.test("function paramaters", () => assertEquals(run(`
     fn add(a int, b int) {
         return a + b
@@ -114,6 +112,7 @@ Deno.test("function paramaters", () => assertEquals(run(`
     }
 `), 42))
 
+// Open
 Deno.test("2.pow(3)", () => assert_stmt(`2.pow(3)`, 8))
 
 Deno.test("alloc", () => assertEquals(run(`

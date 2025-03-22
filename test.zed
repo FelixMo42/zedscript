@@ -1,15 +1,6 @@
-type Token {
-    index: number
-    size: number
-}
-
 fn main() {
-    tokens = []
-
-    tokens.push(Token {
-        index = 0
-        size = 10
-    })
-
-    return tokens
+    return
+        7  if 8 > 9    else
+        10 if 0 > 9000 else
+        0
 }
