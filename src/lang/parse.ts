@@ -13,13 +13,19 @@ export interface FuncNode {
     params: ParamNode[]
 }
 
-export type StatmentNode = ReturnNode | AssignmentNode | IfNode
+export type StatmentNode = ReturnNode | AssignmentNode | IfNode | WhileNode
 
 export interface IfNode {
     kind: "IF_NODE"
     cond: ExprNode,
     a: StatmentNode[]
     b: StatmentNode[]
+}
+
+export interface WhileNode {
+    kind: "WHILE_NODE"
+    cond: ExprNode,
+    body: StatmentNode[]
 }
 
 export interface AssignmentNode {
@@ -147,6 +153,9 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     const if_node = parse_if(tks)
     if (if_node) return if_node
 
+    const while_node = parse_while(tks)
+    if (while_node) return while_node
+
     const name = tks.take("<ident>")
     if (name && tks.take("=")) {
         return {
@@ -191,6 +200,21 @@ function parse_if(tks: TokenStream): StatmentNode | undefined {
             cond,
             a,
             b
+        }
+    }
+}
+
+function parse_while(tks: TokenStream): StatmentNode | undefined {
+    if (tks.take("while")) {
+        const cond = parse_expr(tks)!
+        tks.take("{")
+        const body = parse_stmts(tks)
+        tks.take("}")
+
+        return {
+            kind: "WHILE_NODE",
+            cond,
+            body,
         }
     }
 }

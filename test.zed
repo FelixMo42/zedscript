@@ -1,6 +1,15 @@
+struct Vec2 {
+    x int
+    y int
+}
+
+fn mag(vec Vec2) {
+    return sqrt(vec.x ** 2 + vec.y ** 2)
+}
+
 fn main() {
-    return
-        7  if 8 > 9    else
-        10 if 0 > 9000 else
-        0
+    return mag(Vec2 {
+        x: 0,
+        y: 0,
+    })
 }

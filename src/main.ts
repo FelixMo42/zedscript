@@ -12,9 +12,9 @@ function log_bin(bin: Fn[]) {
                 if (op.kind == "ASSIGN_OP") {
                     console.log(`    ${op.name} = ${op.value}`)
                 } else if (op.kind == "BRANCH_OP") {
-                    console.log(`    if ${op.cond} { >${op.a} } else { >${op.b} }`)
+                    console.log(`    if ${op.cond} $${op.a} else $${op.b}`)
                 } else if (op.kind == "JUMPTO_OP") {
-                    console.log(`    >${op.jump}`)
+                    console.log(`    $${op.jump}`)
                 } else if (op.kind == "RETURN_OP") {
                     console.log(`    return ${op.value}`)
                 } else if (op.kind == "CALLFN_OP") {
@@ -33,13 +33,13 @@ async function main() {
     // tks.logs()
 
     const ast = parse(tks)!
-    // console.log(ast)
+    console.log(ast)
 
     const bin = build(ast)
     log_bin(bin)
 
-    // const out = runit(bin)
-    // console.log(out)
+    const out = runit(bin)
+    console.log(out)
 }
 
 main()

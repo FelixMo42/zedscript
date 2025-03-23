@@ -122,6 +122,25 @@ function build_block(
     let block = start_block
 
     for (const stmt of ast) {
+        if (stmt.kind == "WHILE_NODE") {
+            const cond_block = blocks.push([]) - 1
+            const after_block = blocks.push([]) - 1
+            const body = build_block(blocks, cond_block, stmt.body)
+
+            blocks[block].push({
+                kind: "JUMPTO_OP",
+                jump: cond_block,
+            })
+
+            blocks[cond_block].push({
+                kind: "BRANCH_OP",
+                cond: build_expr(blocks, [cond_block], stmt.cond),
+                a: body, b: after_block
+            })
+
+            block = after_block
+        }
+
         if (stmt.kind == "ASSIGNMENT_NODE") {
             const ptr = [block] as [number]
             const value = build_expr(blocks, ptr, stmt.value)

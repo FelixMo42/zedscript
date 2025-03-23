@@ -111,17 +111,42 @@ Deno.test("function paramaters", () => assertEquals(run(`
         return add(40, 2)
     }
 `), 42))
+Deno.test("fibonacci", () => assertEquals(run(`
+    fn fib(n int) {
+        a = 0
+        b = 1
+
+        while n > 1 {
+            temp = a + b
+            a = b
+            b = temp
+
+            n = n - 1
+        }
+
+        return b
+    }
+
+    fn main() {
+        return fib(6)
+    }
+`), 8))
 
 // Open
-Deno.test("2.pow(3)", () => assert_stmt(`2.pow(3)`, 8))
-
-Deno.test("alloc", () => assertEquals(run(`
-    fn main() {
-        array = alloc(2)
-
-        array.set(0, 4)
-        array.set(1, 2)
-
-        return array.get(0) + array.get(1)
+Deno.test("fibonacci", () => assertEquals(run(`
+    struct Vec2 {
+        x int
+        y int
     }
-`), 6))
+
+    fn mag(point Vec2) {
+        return sqrt(x ** 2 + y ** 2)
+    }
+
+    fn main() {
+        return mag(Vec2 {
+            x: 00,
+            y: 42,
+        })
+    }
+`), 42))
