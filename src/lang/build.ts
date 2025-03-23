@@ -152,6 +152,12 @@ function build_block(
             block = ptr[0]
         }
 
+        if (stmt.kind == "DISCARD_NODE") {
+            const ptr = [block] as [number]
+            build_expr(blocks, ptr, stmt.value)
+            block = ptr[0]
+        }
+
         if (stmt.kind == "IF_NODE") {
             const new_block = blocks.push([]) - 1
             const a = build_block(blocks, new_block, stmt.a)

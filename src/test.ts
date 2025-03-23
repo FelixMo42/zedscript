@@ -131,9 +131,17 @@ Deno.test("fibonacci", () => assertEquals(run(`
         return fib(6)
     }
 `), 8))
+Deno.test("alloc", () => assertEquals(run(`
+    fn main() {
+        ptr = alloc(2)
+        set(ptr, 0, 6)
+        set(ptr, 1, 7)
+        return get(ptr, 0) * get(ptr, 1)
+    }
+`), 42))
 
 // Open
-Deno.test("fibonacci", () => assertEquals(run(`
+Deno.test("Vec2 magnitude", () => assertEquals(run(`
     struct Vec2 {
         x int
         y int

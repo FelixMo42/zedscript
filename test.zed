@@ -1,15 +1,6 @@
-struct Vec2 {
-    x int
-    y int
-}
-
-fn mag(vec Vec2) {
-    return sqrt(vec.x ** 2 + vec.y ** 2)
-}
-
 fn main() {
-    return mag(Vec2 {
-        x: 0,
-        y: 0,
-    })
+    ptr = alloc(2)
+    set(ptr, 0, 6)
+    set(ptr, 1, 7)
+    return get(ptr, 0) * get(ptr, 1)
 }

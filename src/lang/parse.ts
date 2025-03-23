@@ -13,7 +13,7 @@ export interface FuncNode {
     params: ParamNode[]
 }
 
-export type StatmentNode = ReturnNode | AssignmentNode | IfNode | WhileNode
+export type StatmentNode = ReturnNode | AssignmentNode | DiscardNode | IfNode | WhileNode
 
 export interface IfNode {
     kind: "IF_NODE"
@@ -31,6 +31,11 @@ export interface WhileNode {
 export interface AssignmentNode {
     kind: "ASSIGNMENT_NODE"
     name: string,
+    value: ExprNode
+}
+
+export interface DiscardNode {
+    kind: "DISCARD_NODE"
     value: ExprNode
 }
 
@@ -164,13 +169,19 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
             value: parse_expr(tks)!
         }
     }
-
     tks.load(save)
+
     if (tks.take("return")) {
         return {
             kind: "RETURN_NODE",
             value: parse_expr(tks)!
         }
+    }
+
+    const expr = parse_expr(tks)
+    if (expr) return {
+        kind: "DISCARD_NODE",
+        value: expr
     }
 
     tks.load(save)

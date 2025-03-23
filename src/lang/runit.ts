@@ -2,7 +2,7 @@
 
 import type { Fn } from "./build.ts";
 
-export type Value = number | string | boolean | Function | Value[]
+export type Value = number | boolean | Function
 
 interface Ctx {
     get(name: string | number): Value | undefined
@@ -34,7 +34,16 @@ function builtin_ctx(): Ctx {
     vars.set("false", false)
 
     vars.set("max", Math.max)
-    vars.set("int::pow", Math.pow)
+    vars.set("sqrt", Math.sqrt)
+
+    const stack: number[] = []
+    vars.set("set", (ptr: number, i: number, v: number) => stack[ptr + i] = v)
+    vars.set("get", (ptr: number, i: number) => stack[ptr + i])
+    vars.set("alloc", (size: number) => {
+        const ptr = stack.length
+        stack.length += size
+        return ptr
+    })
 
     vars.set("+", (a: number, b: number) => a + b)
     vars.set("-", (a: number, b: number) => a - b)
