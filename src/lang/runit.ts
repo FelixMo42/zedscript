@@ -1,6 +1,6 @@
 // deno-lint-ignore-file ban-types
 
-import type { Fn } from "./build.ts";
+import type { Fn, Prog } from "./build.ts";
 
 export type Value = number | boolean | Function
 
@@ -49,6 +49,7 @@ function builtin_ctx(): Ctx {
     vars.set("-", (a: number, b: number) => a - b)
     vars.set("*", (a: number, b: number) => a * b)
     vars.set("/", (a: number, b: number) => a / b)
+    vars.set("**", (a: number, b: number) => a ** b)
 
     vars.set("==", (a: number, b: number) => a == b)
     vars.set(">", (a: number, b: number) => a > b)
@@ -69,10 +70,10 @@ function builtin_ctx(): Ctx {
     }
 }
 
-export function runit(fns: Fn[], func_name = "main") {
+export function runit(prog: Prog, func_name = "main") {
     const ctx = builtin_ctx().sub()
 
-    for (const fn of fns) {
+    for (const fn of prog.fns) {
         ctx.set(fn.name, (...args: Value[]) => {
             const func_ctx = ctx.sub()
 
@@ -84,7 +85,7 @@ export function runit(fns: Fn[], func_name = "main") {
         })
     }
 
-    return run_func(fns.find(({ name }) => name === func_name)!, ctx.sub())
+    return run_func(prog.fns.find(({ name }) => name === func_name)!, ctx.sub())
 }
 
 function run_func(n: Fn, ctx: Ctx) {

@@ -1,10 +1,10 @@
-import { build, Fn } from "./lang/build.ts";
+import { build, Prog } from "./lang/build.ts";
 import { lexer } from "./lang/lexer.ts";
 import { parse } from "./lang/parse.ts";
 import { runit } from "./lang/runit.ts";
 
-function log_bin(bin: Fn[]) {
-    for (const fn of bin) {
+function log_bin(bin: Prog) {
+    for (const fn of bin.fns) {
         console.log(`fn ${fn.name}() {`)
         for (let i = 0; i < fn.blocks.length; i++) {
             console.log(`  .${i}`)
