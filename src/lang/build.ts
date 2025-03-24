@@ -2,14 +2,50 @@ import type { AssignmentNode, ExprNode, FileNode, FuncNode, ParamNode, ReturnNod
 
 export type Statment = Branch | Jump | AssignmentNode | ReturnNode;
 
-
- 
 class Builder {
+    id = 0
     types: Struct[]
+    vars: Map<string, string>
     blocks: Op[][] = []
 
     constructor(structs: Struct[]) {
         this.types = structs
+        this.vars = new Map()
+    }
+
+    
+
+    new_var(value: string, name: string="v" + String(this.id++)) {
+        this.vars.set(name, value)
+        return name
+    }
+
+    get_type(value: string | number) {
+        if (typeof value == "number") {
+            return "int"
+        } else {
+            return this.vars.get(value)!
+        }
+    }
+
+    get_type_field(value: string | number, name: string): number {
+        const type = this.get_type(value)
+        const struct = this.types.find(s => s.name === type)!
+
+        let index = 0
+        for (const field of struct.fields) {
+            if (field.name == name) break
+            index += this.get_type_size(field.type)
+        }
+        return index
+    }
+
+    get_type_size(type: string) {
+        if (type === "int") {
+            return 1
+        }
+
+        throw new Error("UNIMPLEMENTED!")
     }
 
     new_block() {
@@ -25,11 +61,6 @@ class Builder {
     }
 }
 
-let id = 0
-
-function getSSAN() {
-    return "v" + String(id++)
-}
 
 export interface Jump {
     kind: "JUMP"
@@ -81,7 +112,7 @@ function build_expr(
     } else if (ast.kind === "NUMBER_NODE") {
         return ast.value
     } else if (ast.kind === "ARRAY_NODE") {
-        const name = getSSAN()
+        const name = c.new_var("int")
         c.push(block, {
             kind: "CALLFN_OP",
             name,
@@ -101,7 +132,7 @@ function build_expr(
     } else if (ast.kind === "OP_NODE") {
         const a = build_expr(c, block, ast.a)
         const b = build_expr(c, block, ast.b)
-        const name = getSSAN()
+        const name = c.new_var("int")
         c.push(block, {
             kind: "CALLFN_OP",
             name,
@@ -110,8 +141,7 @@ function build_expr(
         })
         return name
     } else if (ast.kind === "TERNARY_NODE") {
-        const name = getSSAN()
-
+        const name = c.new_var("int")
         const new_block = c.new_block()
         const a = build_block(c, new_block, [{
             kind: "ASSIGNMENT_NODE",
@@ -134,7 +164,7 @@ function build_expr(
     
         return name
     } else if (ast.kind === "CALL_NODE") {
-        const name = getSSAN()
+        const name = c.new_var("int")
 
         if (ast.func.kind != "IDENT_NODE") {
             throw new Error("Can only call ident node!")
@@ -150,7 +180,7 @@ function build_expr(
         })
         return name
     } else if (ast.kind === "INDEX_NODE") {
-        const name = getSSAN()
+        const name = c.new_var("int")
         const value = build_expr(c, block, ast.value)
 
         let index = ast.index
@@ -160,7 +190,7 @@ function build_expr(
         }
 
         if (typeof index == "string") {
-            // TODO
+            index = c.get_type_field(value, index)
         }
 
         c.push(block, {
@@ -208,7 +238,7 @@ function build_block(
             const value = build_expr(c, ptr, stmt.value)
             c.push(ptr, {
                 kind: "ASSIGN_OP",
-                name: stmt.name,
+                name: c.new_var(c.get_type(value), stmt.name),
                 value: value
             })
             block = ptr[0]
@@ -257,8 +287,20 @@ function build_block(
     return start_block
 }
 
+function build_type(ast: ExprNode): string {
+    if (ast.kind == "IDENT_NODE") {
+        return ast.value
+    }
+
+    throw new Error("Unsupproted type value!")
+}
+
 function build_fn(ast: FuncNode, structs: Struct[]): Fn {
     const b = new Builder(structs)
+
+    for (const param of ast.params) {
+        b.vars.set(param.name, build_type(param.type))
+    }
 
     build_block(b, Number.POSITIVE_INFINITY, ast.body)
     

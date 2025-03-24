@@ -153,15 +153,12 @@ Deno.test("array index const", () => assertEquals(run(`
         return ptr.0 + ptr.1
     }
 `), 42))
-
-// Open
 Deno.test("array index dyn", () => assertEquals(run(`
     fn main() {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
 `), 42))
-
 Deno.test("Vec2 magnitude", () => assertEquals(run(`
     struct Vec2 {
         x int
@@ -174,5 +171,40 @@ Deno.test("Vec2 magnitude", () => assertEquals(run(`
 
     fn main() {
         return mag([ 0 , 42 ])
+    }
+`), 42))
+Deno.test("return struct", () => assertEquals(run(`
+    struct Vec2 {
+        x int
+        y int
+    }
+
+    fn mag(p Vec2) {
+        return sqrt(p.x ** 2 + p.y ** 2)
+    }
+
+    fn make() {
+        return [ 0 , 42 ]
+    }
+
+    fn main() {
+        return mag(make())
+    }
+`), 42))
+
+// Open
+Deno.test("return type signature", () => assertEquals(run(`
+    struct Vec2 {
+        x int
+        y int
+    }
+
+    fn make() Vec2 {
+        return [ 0 , 42 ]
+    }
+
+    fn main() {
+        p = make()
+        return sqrt(p.x ** 2 + p.y ** 2)
     }
 `), 42))
