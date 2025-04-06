@@ -93,13 +93,13 @@ function run_func(n: Fn, ctx: Ctx) {
     while (true) {
         for (const op of n.blocks[block++]) {
             if (op.kind == "ASSIGN_OP") {
-                ctx.set(op.name, ctx.get(op.value)!)
+                ctx.set(op.result, ctx.get(op.value)!)
             }
             if (op.kind == "RETURN_OP") {
                 return ctx.get(op.value)
             }
             if (op.kind == "CALLFN_OP") {
-                ctx.set(op.name, (ctx.get(op.func) as Function)(
+                ctx.set(op.result, (ctx.get(op.func) as Function)(
                     ...op.args.map(arg => ctx.get(arg))
                 ))
             }

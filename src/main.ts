@@ -10,7 +10,7 @@ function log_bin(bin: Prog) {
             console.log(`  .${i}`)
             for (const op of fn.blocks[i]) {
                 if (op.kind == "ASSIGN_OP") {
-                    console.log(`    ${op.name} = ${op.value}`)
+                    console.log(`    ${op.result} = ${op.value}`)
                 } else if (op.kind == "BRANCH_OP") {
                     console.log(`    if ${op.cond} $${op.a} else $${op.b}`)
                 } else if (op.kind == "JUMPTO_OP") {
@@ -18,7 +18,7 @@ function log_bin(bin: Prog) {
                 } else if (op.kind == "RETURN_OP") {
                     console.log(`    return ${op.value}`)
                 } else if (op.kind == "CALLFN_OP") {
-                    console.log(`    ${op.name} = ${op.func}(${op.args.join(", ")})`)
+                    console.log(`    ${op.result} = ${op.func}(${op.args.join(", ")})`)
                 }
             }
         }

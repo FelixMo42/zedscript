@@ -1,5 +1,4 @@
 export interface TokenStream {
-    next(): string
     take(match: string): string | undefined
     peak(match?: string): string | undefined
     save(): number
@@ -18,9 +17,6 @@ export function lexer(src: string): TokenStream {
     const self = {
         logs() {
             console.log(tokens)
-        },
-        next() {
-            return tokens[index++]
         },
         take(match: string) {
             const value = self.peak(match)

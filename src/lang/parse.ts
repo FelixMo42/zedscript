@@ -153,7 +153,7 @@ export function parse_func(tks: TokenStream): FuncNode | undefined {
     const save = tks.save()
 
     if (tks.take("fn")) {
-        const name = tks.next()
+        const name = tks.take("<ident>")!
 
         // params
         tks.take("(")
@@ -334,6 +334,7 @@ function parse_call(tks: TokenStream): ExprNode | undefined {
 
 function parse_index(tks: TokenStream): ExprNode | undefined {
     const value = parse_value(tks)!
+    if (!value) return undefined
 
     if (tks.take("[")) {
         const index = parse_expr(tks)!
@@ -373,6 +374,27 @@ function parse_arg_name(tks: TokenStream): string | undefined {
 
 function parse_value(tks: TokenStream): ExprNode | undefined {
     const save = tks.save()
+
+    if (tks.take("{")) {
+        const items: ArgNode[] = []
+
+        while (!tks.peak("}")) {
+            const name = parse_arg_name(tks)
+            items.push({
+                kind: "ARG_NODE",
+                name,
+                value: parse_expr(tks)!
+            })
+            tks.take(",")
+        }
+
+        tks.take("}")
+
+        return {
+            kind: "ARRAY_NODE",
+            items
+        }
+    }
 
     if (tks.take("[")) {
         const items: ArgNode[] = []

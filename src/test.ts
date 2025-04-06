@@ -199,7 +199,7 @@ Deno.test("return type signature", () => assertEquals(run(`
         y int
     }
 
-    fn make() Vec2 {
+    fn make() {
         return [ 0 , 42 ]
     }
 

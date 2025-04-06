@@ -3,10 +3,14 @@ struct Vec2 {
     y int
 }
 
-fn mag(p Vec2) {
-    return sqrt(p.x ** 2 + p.y ** 2)
+fn make() {
+    return {
+        x: 0
+        y: 42
+    }
 }
 
 fn main() {
-    return mag([ 0 , 42 ])
+    p = make()
+    return p.y
 }
