@@ -1,4 +1,6 @@
+import { format } from "../util/format.ts";
 import type { ExprNode, FileNode, FuncNode, ParamNode, StatmentNode, StructNode, TypeNode } from "./parse.ts";
+import { build_module_types, check, IntType, Types } from "./types.ts";
 
 // TYPES
 
@@ -55,16 +57,18 @@ export type Op = {
 
 // BUILDER
 
-const IntType: TypeNode = { kind: "TYPE_NODE", name: "int", args: [] }
+type Typeable = string | number | ExprNode | TypeNode
 
 class Builder {
     id = 0
-    types: Struct[]
-    locals: Map<string, TypeNode>
+    structs: Struct[]
+    global: Types
+    locals: Types
     blocks: Op[][] = []
 
-    constructor(structs: Struct[]) {
-        this.types = structs
+    constructor(structs: Struct[], global: Types) {
+        this.structs = structs
+        this.global = global
         this.locals = new Map()
     }
 
@@ -73,32 +77,66 @@ class Builder {
         return name
     }
 
-    get_type(value: string | number) {
+    get_type(value: Typeable): TypeNode {
         if (typeof value == "number") {
             return IntType
+        } else if (typeof value == "object" && value.kind === "TYPE_NODE") {
+            return value
         } else {
-            return this.locals.get(value)!
+            return this.locals.get(value) ?? this.global.get(value)!
         }
     }
 
-    get_type_field(value: string | number, name: string): number {
+    get_type_field(value: Typeable, name: string): number {
         const type = this.get_type(value)
-        const struct = this.types.find(s => s.name === type.name)!
+        const struct = this.structs.find(s => s.name === type.name)
+
+        if (!struct) {
+            throw new Error(`Can't find struct ${format(type)}`)
+        }
 
         let index = 0
         for (const field of struct.fields) {
             if (field.name == name) break
             index += this.get_type_size(field.type)
         }
+    
         return index
     }
 
-    get_type_size(type: TypeNode) {
+    get_type_size(type: Typeable): number {
+        if (type === undefined) {
+            throw new Error("Can't get type size of undefined!")
+        }
+
+        if (typeof type == "number") {
+            return 1
+        }
+
+        if (typeof type != "object" || type.kind != "TYPE_NODE") {
+            const k = this.locals.get(type)!
+
+            if (!k) {
+                throw new Error(`Failed to get type of ${format(type)}!`)
+            }
+
+            return this.get_type_size(k)
+        }
+
         if (type.name === "int") {
             return 1
         }
 
-        throw new Error("UNIMPLEMENTED!")
+        const struct = this.structs.find(s => s.name === type.name)
+        if (struct) {
+            let size = 0
+            for (const field of struct.fields) {
+                size += this.get_type_size(field.type)
+            }
+            return size
+        }
+
+        throw new Error(`Can't get size of ${format(type)}!`)
     }
 
     new_block() {
@@ -124,6 +162,7 @@ function build_expr(
     } else if (ast.kind === "NUMBER_NODE") {
         return ast.value
     } else if (ast.kind === "ARRAY_NODE") {
+        // init the array
         const name = c.new_local(IntType)
         c.push(block, {
             kind: "CALLFN_OP",
@@ -131,8 +170,10 @@ function build_expr(
             func: "alloc",
             args: [ast.items.length]
         })
+
+        // add each item
         for (const [i, item] of ast.items.entries()) {
-            const v = build_expr(c, block, item.value)
+            const v = build_expr(c, block, item)
             c.push(block, {
                 kind: "STORE_OP",
                 target: name,
@@ -140,10 +181,38 @@ function build_expr(
                 value: v
             })
         }
+
+        // return the local with the pointer to the array
+        return name
+    } else if (ast.kind === "OBJECT_NODE") {
+        // init the object
+        const name = c.new_local(c.get_type(ast))
+        c.push(block, {
+            kind: "CALLFN_OP",
+            result: name,
+            func: "alloc",
+            args: [c.get_type_size(ast)]
+        })
+
+        // add each item
+        for (const item of ast.items.values()) {
+            const v = build_expr(c, block, item.value)
+            c.push(block, {
+                kind: "STORE_OP",
+                target: name,
+                offset: c.get_type_field(ast, item.name!),
+                value: v
+            })
+        }
+
+        // return the local with the pointer to the array
         return name
     } else if (ast.kind === "OP_NODE") {
+        // compute the arguments to the op
         const a = build_expr(c, block, ast.a)
         const b = build_expr(c, block, ast.b)
+
+        // do the op
         const name = c.new_local(IntType)
         c.push(block, {
             kind: "CALLFN_OP",
@@ -151,10 +220,17 @@ function build_expr(
             func: ast.op,
             args: [a, b] 
         })
+
+        // return
         return name
     } else if (ast.kind === "TERNARY_NODE") {
+        // the local with the result of the ternary operation
         const name = c.new_local(IntType)
+
+        // the exit block to go to afer we are done
         const new_block = c.new_block()
+
+        // build branch a
         const a = build_block(c, new_block, [{
             kind: "ASSIGNMENT_NODE",
             name: {
@@ -163,6 +239,8 @@ function build_expr(
             },
             value: ast.a
         }])
+
+        // build branch b
         const b = build_block(c, new_block, [{
             kind: "ASSIGNMENT_NODE",
             name: {
@@ -172,46 +250,88 @@ function build_expr(
             value: ast.b
         }])
 
+        // swap between branchs
         c.push(block, {
             kind: "BRANCH_OP",
             cond: build_expr(c, [block[0]], ast.cond),
             a, b
         })
     
+        // put the write head into the new block
         block[0] = new_block
     
+        // return the local
         return name
     } else if (ast.kind === "CALL_NODE") {
-        const name = c.new_local(IntType)
 
+        // make sure the thing we are calling is a function
         if (ast.func.kind != "IDENT_NODE") {
             throw new Error("Can only call ident node!")
         }
 
-        const func = ast.func.value
+        // get the type signature of the function
+        const type = c.get_type(ast.func.value)
 
+        // the result of the function call
+        const name = c.new_local(type.args[1])
+
+        // call the function
         c.push(block, {
             kind: "CALLFN_OP",
             result: name,
-            func,
+            func: ast.func.value,
             args: ast.args.map(arg => build_expr(c, block, arg))
         })
+
+        // return the result
         return name
     } else if (ast.kind === "INDEX_NODE") {
+        // 
         const name = c.new_local(IntType)
+
+        // 
         const value = build_expr(c, block, ast.value)
         const index = build_expr(c, block, ast.index) 
 
+        // 
         if (typeof value == "number") {
             throw new Error("Can not index number!")
         }
 
+        // 
         c.push(block, {
             kind: "LOAD_OP",
             result: name,
             local: value,
             offset: index,
         })
+
+        // return the result
+        return name
+    } else if (ast.kind === "FIELD_NODE") {
+        // 
+        const name = c.new_local(IntType)
+
+        // 
+        const value = build_expr(c, block, ast.value)
+
+        // 
+        if (typeof value == "number") {
+            throw new Error("Can not field a number!")
+        }
+
+        //
+        const index = c.get_type_field(value, ast.field)
+
+        // 
+        c.push(block, {
+            kind: "LOAD_OP",
+            result: name,
+            local: value,
+            offset: index,
+        })
+
+        // return the result
         return name
     } else {
         throw new Error(`Unimplement feature ${ast.kind}!`)
@@ -306,11 +426,15 @@ function build_block(
     return start_block
 }
 
-function build_fn(ast: FuncNode, structs: Struct[]): Fn {
-    const b = new Builder(structs)
+function build_fn(ast: FuncNode, structs: Struct[], global: Types): Fn {
+    const b = new Builder(structs, global)
 
     for (const param of ast.params) {
         b.locals.set(param.name, param.type)
+    }
+
+    for (const [key, type] of check(global, ast)) {
+        b.locals.set(key, type)
     }
 
     build_block(b, Number.POSITIVE_INFINITY, ast.body)
@@ -333,13 +457,15 @@ function build_struct(ast: StructNode): Struct {
 }
 
 export function build(file: FileNode): Prog {
+    const global = build_module_types(file)
+
     const structs = file
         .filter(node => node.kind == "STRUCT_NODE")
         .map(struct_node => build_struct(struct_node))
 
     const fns = file
         .filter(node => node.kind == "FUNC_NODE")
-        .map(func_node => build_fn(func_node, structs))
+        .map(func_node => build_fn(func_node, structs, global))
 
     return { fns, structs }
 }

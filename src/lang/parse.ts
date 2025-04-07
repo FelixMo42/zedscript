@@ -59,7 +59,7 @@ export interface ReturnNode {
     value: ExprNode
 }
 
-export type ExprNode = ArrayNode | IndexNode | NumberNode | StringNode | IdentNode | OpNode | TernaryNode | CallNode
+export type ExprNode = ArrayNode | ObjectNode | IndexNode | NumberNode | StringNode | IdentNode | OpNode | TernaryNode | CallNode | FieldNode
 
 export interface CallNode {
     kind: "CALL_NODE",
@@ -73,6 +73,12 @@ export interface IndexNode {
     index: ExprNode
 }
 
+export interface FieldNode {
+    kind: "FIELD_NODE"
+    value: ExprNode
+    field: string
+}
+
 export type Op = "+" | "-" | "/" | "*" | "==" | ">" | "<" | ">=" | "<=" | "**"
 
 export interface OpNode {
@@ -84,6 +90,11 @@ export interface OpNode {
 
 export interface ArrayNode {
     kind: "ARRAY_NODE"
+    items: ExprNode[]
+}
+
+export interface ObjectNode {
+    kind: "OBJECT_NODE"
     items: ArgNode[]
 }
 
@@ -159,6 +170,21 @@ export function parse_struct(tks: TokenStream): StructNode | undefined {
 export function parse_type(tks: TokenStream): TypeNode | undefined {
     const save = tks.save()
     
+    if (tks.take("(")) {
+        const args = []
+
+        while (!tks.take(")")) {
+            args.push(parse_type(tks)!)
+            tks.take(",")
+        }
+
+        return {
+            kind: "TYPE_NODE",
+            name: "Tuple",
+            args,
+        }
+    }
+
     const name = tks.take("<ident>")
     if (name) {
         const args = []
@@ -383,14 +409,13 @@ function parse_index(tks: TokenStream): ExprNode | undefined {
     }
 
     if (tks.take(".")) {
-        throw new Error("NOOOOO!")
-        // const index = tks.take("<ident>") ?? Number(tks.take("<number>")!)
+        const field = tks.take("<ident>")!
 
-        // return {
-        //     kind: "INDEX_NODE",
-        //     value,
-        //     index
-        // }
+        return {
+            kind: "FIELD_NODE",
+            value,
+            field,
+        }
     }
 
     return value
@@ -427,21 +452,16 @@ function parse_value(tks: TokenStream): ExprNode | undefined {
         tks.take("}")
 
         return {
-            kind: "ARRAY_NODE",
+            kind: "OBJECT_NODE",
             items
         }
     }
 
     if (tks.take("[")) {
-        const items: ArgNode[] = []
+        const items: ExprNode[] = []
 
         while (!tks.peak("]")) {
-            const name = parse_arg_name(tks)
-            items.push({
-                kind: "ARG_NODE",
-                name,
-                value: parse_expr(tks)!
-            })
+            items.push(parse_expr(tks)!)
             tks.take(",")
         }
 

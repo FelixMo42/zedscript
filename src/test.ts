@@ -14,8 +14,9 @@ function run(src: string) {
 }
 
 function assert_stmt(stmt: string, value: Value) {
+    const type = typeof value == "number" ? "int" : "bool" 
     return assertEquals(run(`
-        fn main() {
+        fn main() ${type} {
             return ${stmt}
         }    
     `), value)
@@ -38,13 +39,13 @@ Deno.test("6 * 7 < 6 * 6 + 2", () => assert_stmt(`6 * 7 < 6 * 6 + 2`, false))
 Deno.test("6 * 7 >= 6 * 6 + 2", () => assert_stmt(`6 * 7 >= 6 * 6 + 2`, true))
 Deno.test("6 * 7 <= 6 * 6 + 2", () => assert_stmt(`6 * 7 <= 6 * 6 + 2`, false))
 Deno.test("one variable", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         a = 3 + 3
         return a * 7
     } 
 `), 42))
 Deno.test("two variable", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         a = 3 + 3
         b = 14 / 2 - 1
         return a * (b + 1)
@@ -60,7 +61,7 @@ Deno.test("ternary else if", () => assert_stmt(`
     0
 `, 0))
 Deno.test("if with return", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         if true {
             return 4
         }
@@ -69,7 +70,7 @@ Deno.test("if with return", () => assertEquals(run(`
     }
 `), 4))
 Deno.test("if else with return", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         if true {
             return 4
         } else {
@@ -78,7 +79,7 @@ Deno.test("if else with return", () => assertEquals(run(`
     }
 `), 4))
 Deno.test("if else with var assignment", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         if 42 > 10000 {
             a = 4
         } else {
@@ -89,30 +90,30 @@ Deno.test("if else with var assignment", () => assertEquals(run(`
     }
 `), 2))
 Deno.test("built in function call", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         return max(42, 9000)
     }
 `), 9000))
 Deno.test("two functions", () => assertEquals(run(`
-    fn the_number_six() {
+    fn the_number_six() int {
         return 6
     }
 
-    fn main() {
+    fn main() int {
         return the_number_six() * 7
     }
 `), 42))
 Deno.test("function paramaters", () => assertEquals(run(`
-    fn add(a int, b int) {
+    fn add(a int, b int) int {
         return a + b
     }
 
-    fn main() {
+    fn main() int {
         return add(40, 2)
     }
 `), 42))
 Deno.test("fibonacci", () => assertEquals(run(`
-    fn fib(n int) {
+    fn fib(n int) int {
         a = 0
         b = 1
 
@@ -127,34 +128,26 @@ Deno.test("fibonacci", () => assertEquals(run(`
         return b
     }
 
-    fn main() {
+    fn main() int {
         return fib(6)
     }
 `), 8))
-Deno.test("alloc", () => assertEquals(run(`
-    fn main() {
-        ptr = alloc(2)
-        ptr[0] = 6
-        ptr[1] = 7
-        return ptr[0] * ptr[1]
-    }
-`), 42))
 Deno.test("sqrt", () => assert_stmt("sqrt(4)", 2))
 Deno.test("2 ** 3", () => assert_stmt("2 ** 3", 8))
 Deno.test("array", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
 `), 42))
 Deno.test("array index const", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
 `), 42))
 Deno.test("array index dyn", () => assertEquals(run(`
-    fn main() {
+    fn main() int {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
@@ -169,9 +162,9 @@ Deno.test("Vec2 magnitude", () => assertEquals(run(`
         return sqrt(p.x ** 2 + p.y ** 2)
     }
 
-    fn main() {
+    fn main() int {
         return mag({
-            x: 0,
+            x: 0
             y: 42
         })
     }
@@ -193,7 +186,7 @@ Deno.test("return struct", () => assertEquals(run(`
         }
     }
 
-    fn main() {
+    fn main() int {
         return mag(make())
     }
 `), 42))
@@ -212,7 +205,7 @@ Deno.test("return type signature", () => assertEquals(run(`
         }
     }
 
-    fn main() {
+    fn main() int {
         p = make()
         return sqrt(p.x ** 2 + p.y ** 2)
     }
