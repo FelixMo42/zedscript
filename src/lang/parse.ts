@@ -5,7 +5,7 @@ export type FileNode = (FuncNode | StructNode)[]
 export interface ParamNode {
     kind: "PARAM_NODE",
     name: string,
-    type: ExprNode,
+    type: TypeNode,
 }
 
 export interface ArgNode {
@@ -17,6 +17,7 @@ export interface ArgNode {
 export interface FuncNode {
     kind: "FUNC_NODE"
     name: string
+    return_type?: TypeNode
     body: StatmentNode[]
     params: ParamNode[]
 }
@@ -44,7 +45,7 @@ export interface WhileNode {
 
 export interface AssignmentNode {
     kind: "ASSIGNMENT_NODE"
-    name: string,
+    name: ExprNode,
     value: ExprNode
 }
 
@@ -69,7 +70,7 @@ export interface CallNode {
 export interface IndexNode {
     kind: "INDEX_NODE"
     value: ExprNode
-    index: string | number | ExprNode
+    index: ExprNode
 }
 
 export type Op = "+" | "-" | "/" | "*" | "==" | ">" | "<" | ">=" | "<=" | "**"
@@ -108,6 +109,12 @@ export interface TernaryNode {
     b: ExprNode,
 }
 
+export interface TypeNode {
+    kind: "TYPE_NODE",
+    name: string,
+    args: TypeNode[]
+}
+
 // TOP LEVEL //
 
 export function parse_file(tks: TokenStream): FileNode {
@@ -133,7 +140,7 @@ export function parse_struct(tks: TokenStream): StructNode | undefined {
             fields.push({
                 kind: "PARAM_NODE",
                 name: tks.take("<ident>")!,
-                type: parse_expr(tks)!,
+                type: parse_type(tks)!,
             })
         }
         tks.take("}")
@@ -142,6 +149,31 @@ export function parse_struct(tks: TokenStream): StructNode | undefined {
             kind: "STRUCT_NODE",
             name,
             fields
+        }
+    }
+
+    tks.load(save)
+    return undefined
+}
+
+export function parse_type(tks: TokenStream): TypeNode | undefined {
+    const save = tks.save()
+    
+    const name = tks.take("<ident>")
+    if (name) {
+        const args = []
+
+        if (tks.take("<")) {
+            while (!tks.take(">")) {
+                args.push(parse_type(tks)!)
+                tks.take(",")
+            }
+        }
+        
+        return {
+            kind: "TYPE_NODE",
+            name,
+            args,
         }
     }
 
@@ -162,11 +194,14 @@ export function parse_func(tks: TokenStream): FuncNode | undefined {
             params.push({
                 kind: "PARAM_NODE",
                 name: tks.take("<ident>")!,
-                type: parse_expr(tks)!,
+                type: parse_type(tks)!,
             })
             tks.take(",")
         }
         tks.take(")")
+
+        // return type
+        const return_type = parse_type(tks)
 
         // body
         tks.take("{")
@@ -174,7 +209,7 @@ export function parse_func(tks: TokenStream): FuncNode | undefined {
         tks.take("}")
 
         // returns
-        return { kind: "FUNC_NODE", name, body, params }
+        return { kind: "FUNC_NODE", name, return_type, body, params }
     }
     
     tks.load(save)
@@ -202,16 +237,6 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     const while_node = parse_while(tks)
     if (while_node) return while_node
 
-    const name = tks.take("<ident>")
-    if (name && tks.take("=")) {
-        return {
-            kind: "ASSIGNMENT_NODE",
-            name,
-            value: parse_expr(tks)!
-        }
-    }
-    tks.load(save)
-
     if (tks.take("return")) {
         return {
             kind: "RETURN_NODE",
@@ -220,6 +245,16 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     }
 
     const expr = parse_expr(tks)
+    
+
+    if (expr && tks.take("=")) {
+        return {
+            kind: "ASSIGNMENT_NODE",
+            name: expr,
+            value: parse_expr(tks)!
+        }
+    }
+
     if (expr) return {
         kind: "DISCARD_NODE",
         value: expr
@@ -271,7 +306,7 @@ function parse_while(tks: TokenStream): StatmentNode | undefined {
     }
 }
 
-// EXPRESSIONS //
+// INDEX_NODEESSIONS //
 
 function parse_expr(tks: TokenStream): ExprNode | undefined  {
     return parse_ternary(tks)
@@ -348,13 +383,14 @@ function parse_index(tks: TokenStream): ExprNode | undefined {
     }
 
     if (tks.take(".")) {
-        const index = tks.take("<ident>") ?? Number(tks.take("<number>")!)
+        throw new Error("NOOOOO!")
+        // const index = tks.take("<ident>") ?? Number(tks.take("<number>")!)
 
-        return {
-            kind: "INDEX_NODE",
-            value,
-            index
-        }
+        // return {
+        //     kind: "INDEX_NODE",
+        //     value,
+        //     index
+        // }
     }
 
     return value

@@ -134,9 +134,9 @@ Deno.test("fibonacci", () => assertEquals(run(`
 Deno.test("alloc", () => assertEquals(run(`
     fn main() {
         ptr = alloc(2)
-        set(ptr, 0, 6)
-        set(ptr, 1, 7)
-        return get(ptr, 0) * get(ptr, 1)
+        ptr[0] = 6
+        ptr[1] = 7
+        return ptr[0] * ptr[1]
     }
 `), 42))
 Deno.test("sqrt", () => assert_stmt("sqrt(4)", 2))
@@ -144,13 +144,13 @@ Deno.test("2 ** 3", () => assert_stmt("2 ** 3", 8))
 Deno.test("array", () => assertEquals(run(`
     fn main() {
         ptr = [40, 2]
-        return get(ptr, 0) + get(ptr, 1)
+        return ptr[0] + ptr[1]
     }
 `), 42))
 Deno.test("array index const", () => assertEquals(run(`
     fn main() {
         ptr = [40, 2]
-        return ptr.0 + ptr.1
+        return ptr[0] + ptr[1]
     }
 `), 42))
 Deno.test("array index dyn", () => assertEquals(run(`
@@ -165,12 +165,15 @@ Deno.test("Vec2 magnitude", () => assertEquals(run(`
         y int
     }
 
-    fn mag(p Vec2) {
+    fn mag(p Vec2) int {
         return sqrt(p.x ** 2 + p.y ** 2)
     }
 
     fn main() {
-        return mag([ 0 , 42 ])
+        return mag({
+            x: 0,
+            y: 42
+        })
     }
 `), 42))
 Deno.test("return struct", () => assertEquals(run(`
@@ -179,12 +182,15 @@ Deno.test("return struct", () => assertEquals(run(`
         y int
     }
 
-    fn mag(p Vec2) {
+    fn mag(p Vec2) int {
         return sqrt(p.x ** 2 + p.y ** 2)
     }
 
-    fn make() {
-        return [ 0 , 42 ]
+    fn make() Vec2 {
+        return {
+            x: 0,
+            y: 42
+        }
     }
 
     fn main() {
@@ -199,8 +205,11 @@ Deno.test("return type signature", () => assertEquals(run(`
         y int
     }
 
-    fn make() {
-        return [ 0 , 42 ]
+    fn make() Vec2 {
+        return {
+            x: 0,
+            y: 42
+        }
     }
 
     fn main() {

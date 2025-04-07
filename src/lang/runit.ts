@@ -1,10 +1,12 @@
 // deno-lint-ignore-file ban-types
 
 import type { Fn, Prog } from "./build.ts";
+import { unreachable } from "jsr:@std/assert/unreachable";
 
 export type Value = number | boolean | Function
 
 interface Ctx {
+    memory: number[]
     get(name: string | number): Value | undefined
     set(name: string, value: Value): void
     sub(): Ctx
@@ -14,6 +16,7 @@ function Ctx(parent: Ctx) {
     const vars = new Map()
 
     return {
+        memory: parent.memory,
         get(name: string | number) {
             if (typeof name == "number") return name
             return vars.get(name) ?? parent.get(name)
@@ -28,38 +31,37 @@ function Ctx(parent: Ctx) {
 }
 
 function builtin_ctx(): Ctx {
-    const vars = new Map<string, Value>()
+    const memory: number[] = []
+    const globals = new Map<string, Value>()
 
-    vars.set("true", true)
-    vars.set("false", false)
+    globals.set("true", true)
+    globals.set("false", false)
 
-    vars.set("max", Math.max)
-    vars.set("sqrt", Math.sqrt)
+    globals.set("max", Math.max)
+    globals.set("sqrt", Math.sqrt)
 
-    const stack: number[] = []
-    vars.set("set", (ptr: number, i: number, v: number) => stack[ptr + i] = v)
-    vars.set("get", (ptr: number, i: number) => stack[ptr + i])
-    vars.set("alloc", (size: number) => {
-        const ptr = stack.length
-        stack.length += size
+    globals.set("alloc", (size: number) => {
+        const ptr = memory.length
+        memory.length += size
         return ptr
     })
 
-    vars.set("+", (a: number, b: number) => a + b)
-    vars.set("-", (a: number, b: number) => a - b)
-    vars.set("*", (a: number, b: number) => a * b)
-    vars.set("/", (a: number, b: number) => a / b)
-    vars.set("**", (a: number, b: number) => a ** b)
+    globals.set("+", (a: number, b: number) => a + b)
+    globals.set("-", (a: number, b: number) => a - b)
+    globals.set("*", (a: number, b: number) => a * b)
+    globals.set("/", (a: number, b: number) => a / b)
+    globals.set("**", (a: number, b: number) => a ** b)
 
-    vars.set("==", (a: number, b: number) => a == b)
-    vars.set(">", (a: number, b: number) => a > b)
-    vars.set("<", (a: number, b: number) => a < b)
-    vars.set(">=", (a: number, b: number) => a >= b)
-    vars.set("<=", (a: number, b: number) => a <= b)
+    globals.set("==", (a: number, b: number) => a == b)
+    globals.set(">", (a: number, b: number) => a > b)
+    globals.set("<", (a: number, b: number) => a < b)
+    globals.set(">=", (a: number, b: number) => a >= b)
+    globals.set("<=", (a: number, b: number) => a <= b)
 
     return {
+        memory,
         get(name: string) {
-            return vars.get(name)
+            return globals.get(name)
         },
         set(_name: string, _value: Value) {
             throw new Error("CAN NOT SET BUILTINS!")
@@ -94,24 +96,26 @@ function run_func(n: Fn, ctx: Ctx) {
         for (const op of n.blocks[block++]) {
             if (op.kind == "ASSIGN_OP") {
                 ctx.set(op.result, ctx.get(op.value)!)
-            }
-            if (op.kind == "RETURN_OP") {
+            } else if (op.kind == "RETURN_OP") {
                 return ctx.get(op.value)
-            }
-            if (op.kind == "CALLFN_OP") {
+            } else if (op.kind == "CALLFN_OP") {
                 ctx.set(op.result, (ctx.get(op.func) as Function)(
                     ...op.args.map(arg => ctx.get(arg))
                 ))
-            }
-            if (op.kind == "BRANCH_OP") {
+            } else if (op.kind == "BRANCH_OP") {
                 if (ctx.get(op.cond)) {
                     block = op.a
                 } else {
                     block = op.b
                 }
-            }
-            if (op.kind === "JUMPTO_OP") {
+            } else if (op.kind === "JUMP_OP") {
                 block = op.jump
+            } else if (op.kind == "LOAD_OP") {
+                ctx.set(op.result, ctx.memory[(ctx.get(op.local) as number) + (op.offset as number)])
+            } else if (op.kind == "STORE_OP") {
+                ctx.memory[(ctx.get(op.target) as number) + (op.offset as number)] = ctx.get(op.value) as number 
+            } else {
+                unreachable(`!!!!`)
             }
         }
     }

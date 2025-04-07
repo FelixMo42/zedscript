@@ -1,16 +1,4 @@
-struct Vec2 {
-    x int
-    y int
-}
-
-fn make() {
-    return {
-        x: 0
-        y: 42
-    }
-}
-
 fn main() {
-    p = make()
-    return p.y
+    ptr = [40, 2]
+    return ptr[0] + ptr[1]
 }
