@@ -1,6 +1,9 @@
 import type { TokenStream } from "./lexer.ts";
 
-export type FileNode = (FuncNode | StructNode)[]
+export type FileNode = {
+    kind: "FILE_NODE",
+    items: (FuncNode | StructNode)[]
+}
 
 export interface ParamNode {
     kind: "PARAM_NODE",
@@ -129,15 +132,18 @@ export interface TypeNode {
 // TOP LEVEL //
 
 export function parse_file(tks: TokenStream): FileNode {
-    const funcs = []
+    const items = []
 
     while (true) {
         const node = parse_func(tks) ?? parse_struct(tks)
         if (!node) break
-        funcs.push(node)
+        items.push(node)
     }
 
-    return funcs
+    return {
+        kind: "FILE_NODE",
+        items
+    }
 }
 
 export function parse_struct(tks: TokenStream): StructNode | undefined {
@@ -369,32 +375,11 @@ function parse_mul(tks: TokenStream): ExprNode | undefined  {
 }
 
 function parse_ex(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_call, parse_ex, ["**"])
-}
-
-function parse_call(tks: TokenStream): ExprNode | undefined {
-    const value = parse_index(tks)!
-
-    if (tks.take("(")) {
-        const args = []
-        while (!tks.peak(")")) {
-            args.push(parse_expr(tks)!)
-            tks.take(",")
-        }
-        tks.take(")")
-
-        return {
-            kind: "CALL_NODE",
-            func: value,
-            args,
-        }
-    }
-
-    return value
+    return parse_op(tks, parse_index, parse_ex, ["**"])
 }
 
 function parse_index(tks: TokenStream): ExprNode | undefined {
-    const value = parse_value(tks)!
+    const value = parse_call(tks)!
     if (!value) return undefined
 
     if (tks.take("[")) {
@@ -415,6 +400,27 @@ function parse_index(tks: TokenStream): ExprNode | undefined {
             kind: "FIELD_NODE",
             value,
             field,
+        }
+    }
+
+    return value
+}
+
+function parse_call(tks: TokenStream): ExprNode | undefined {
+    const value = parse_value(tks)!
+
+    if (tks.take("(")) {
+        const args = []
+        while (!tks.peak(")")) {
+            args.push(parse_expr(tks)!)
+            tks.take(",")
+        }
+        tks.take(")")
+
+        return {
+            kind: "CALL_NODE",
+            func: value,
+            args,
         }
     }
 

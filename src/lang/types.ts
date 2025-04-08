@@ -1,12 +1,14 @@
 import { format, log_types } from "../util/format.ts";
+import { FuncSSA, Module, StatmentSSA } from "./ast.ts";
 import { global_types } from "./lib.ts";
-import { ExprNode, FileNode, FuncNode, StatmentNode, TypeNode } from "./parse.ts";
+import { ExprNode, StatmentNode, TypeNode } from "./parse.ts";
 
 /// Common
 
 export type Types = Map<string | ExprNode, TypeNode>
 
 export const IntType: TypeNode = Type("int")
+export const VoidType: TypeNode = Type("void")
 export const BoolType: TypeNode = Type("bool")
 
 export function Type(name: string, ...args: TypeNode[]): TypeNode {
@@ -23,18 +25,18 @@ function eq(a: object, b: object) {
 
 /// Global
 
-export function build_module_types(file: FileNode): Types {
+export function build_module_types(file: Module): Types {
     const types = new Map<string, TypeNode>()
 
     for (const [name, type] of global_types) {
         types.set(name, type)
     }
 
-    file.forEach((n) => {
-        if (n.kind === "FUNC_NODE") {
+    file.items.forEach((n) => {
+        if (n.kind === "FUNC_SSA") {
             types.set(n.name, Type("Fn",
                 Type("Tuple", ...n.params.map((p) => p.type)),
-                n.return_type ? n.return_type : Type("void")
+                n.return_type,
             ))
         } else if (n.kind === "STRUCT_NODE") {
             types.set(n.name, Type(n.name))
@@ -54,7 +56,7 @@ export function build_module_types(file: FileNode): Types {
 
 interface Ctx {
     unknowns: number
-    func: FuncNode
+    func: FuncSSA
     tmap: Types
 }
 
@@ -123,7 +125,7 @@ function set_type(c: Ctx, n: ExprNode | StatmentNode | TypeNode, t: TypeNode) {
     }
 }
 
-function get_type(c: Ctx, n: ExprNode | StatmentNode): TypeNode {
+function get_type(c: Ctx, n: ExprNode | StatmentSSA): TypeNode {
     if (n.kind === "NUMBER_NODE") {
         return IntType
     } else if (n.kind === "IDENT_NODE") {
@@ -142,6 +144,9 @@ function get_type(c: Ctx, n: ExprNode | StatmentNode): TypeNode {
         if (isUnknow(a)) {
             const b = get_type(c, n.name)
             set_type(c, a, b)
+            return b
+        } else {
+            set_type(c, n.name, a)
         }
 
         return a
@@ -189,11 +194,13 @@ function get_type(c: Ctx, n: ExprNode | StatmentNode): TypeNode {
     } else if (n.kind === "TERNARY_NODE") {
         get_type(c, n.b)
         return get_type(c, n.a)
-    } else if (n.kind === "IF_NODE") {
-        return BoolType
-    } else if (n.kind === "WHILE_NODE") {
-        return BoolType
     } else if (n.kind === "ARRAY_NODE") {
+        return Type("array", IntType)
+    } else if (n.kind === "JUMP_OP") {
+        return VoidType
+    } else if (n.kind === "BRANCH_SSA") {
+        return VoidType
+    } else if (n.kind === "INDEX_NODE") {
         return IntType
     } else {
         throw new Error("?????: " + n.kind)
@@ -223,7 +230,7 @@ function collapseUnknowns(t: Types) {
     }
 }
 
-export function check(globals: Types, func: FuncNode) {
+export function check(globals: Types, func: FuncSSA) {
     const ctx: Ctx = {
         unknowns: 0,
         func,
@@ -238,8 +245,10 @@ export function check(globals: Types, func: FuncNode) {
         ctx.tmap.set(c.name, c.type)
     }
 
-    for (const stmt of func.body) {
-        get_type(ctx, stmt)
+    for (const block of func.body) {
+        for (const stmt of block) {
+            get_type(ctx, stmt)
+        }
     }
 
     collapseUnknowns(ctx.tmap)

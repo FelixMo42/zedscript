@@ -19,11 +19,11 @@ add("*", "Fn<(int, int), int>", (a: number, b: number) => a * b)
 add("/", "Fn<(int, int), int>", (a: number, b: number) => a / b)
 add("**", "Fn<(int, int), int>", (a: number, b: number) => a ** b)
 
-add("==", "Fn<(any, any), bool>", (a: number, b: number) => a == b)
-add(">", "Fn<(any, any), bool>", (a: number, b: number) => a > b)
-add("<", "Fn<(any, any), bool>", (a: number, b: number) => a < b)
-add(">=", "Fn<(any, any), bool>", (a: number, b: number) => a >= b)
-add("<=", "Fn<(any, any), bool>", (a: number, b: number) => a <= b)
+add("==", "Fn<(int, int), bool>", (a: number, b: number) => a == b)
+add(">", "Fn<(int, int), bool>", (a: number, b: number) => a > b)
+add("<", "Fn<(int, int), bool>", (a: number, b: number) => a < b)
+add(">=", "Fn<(int, int), bool>", (a: number, b: number) => a >= b)
+add("<=", "Fn<(int, int), bool>", (a: number, b: number) => a <= b)
 
 function add(name: string, type: string, value: Value) {
     global_types.set(name, parse_type(lexer(type))!)

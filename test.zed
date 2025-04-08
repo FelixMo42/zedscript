@@ -4,13 +4,13 @@ struct Vec2 {
 }
 
 fn make() Vec2 {
-    return {
-        x: 0,
-        y: 42
+    if true {
+        a = { x: 42, y: 0 }
+        return a
     }
+    return { x: 1, y: 1 }
 }
 
 fn main() int {
-    p = make()
-    return sqrt(p.x ** 2 + p.y ** 2)
+    return make().x
 }

@@ -1,10 +1,12 @@
 import { format } from "../util/format.ts";
-import type { ExprNode, FileNode, FuncNode, ParamNode, StatmentNode, StructNode, TypeNode } from "./parse.ts";
+import { FuncSSA, Module } from "./ast.ts";
+import type { ExprNode, ParamNode, StructNode, TypeNode } from "./parse.ts";
 import { build_module_types, check, IntType, Types } from "./types.ts";
 
 // TYPES
 
 export interface Prog {
+    kind: "PROG"
     structs: Struct[]
     fns: Fn[]
 }
@@ -18,6 +20,7 @@ export interface Struct {
 }
 
 export interface Fn {
+    kind: "FN"
     name: string
     blocks: Op[][]
     params: ParamNode[]
@@ -82,6 +85,8 @@ class Builder {
             return IntType
         } else if (typeof value == "object" && value.kind === "TYPE_NODE") {
             return value
+        } else if (typeof value == "object" && value.kind === "IDENT_NODE") {
+            return this.get_type(value.value)
         } else {
             return this.locals.get(value) ?? this.global.get(value)!
         }
@@ -152,297 +157,123 @@ class Builder {
     }
 }
 
-function build_expr(
-    c: Builder,
-    block: [number],
-    ast: ExprNode
-): string | number {
-    if (ast.kind === "IDENT_NODE") {
-        return ast.value
-    } else if (ast.kind === "NUMBER_NODE") {
-        return ast.value
-    } else if (ast.kind === "ARRAY_NODE") {
-        // init the array
-        const name = c.new_local(IntType)
-        c.push(block, {
-            kind: "CALLFN_OP",
-            result: name,
-            func: "alloc",
-            args: [ast.items.length]
-        })
-
-        // add each item
-        for (const [i, item] of ast.items.entries()) {
-            const v = build_expr(c, block, item)
-            c.push(block, {
-                kind: "STORE_OP",
-                target: name,
-                offset: i,
-                value: v
-            })
-        }
-
-        // return the local with the pointer to the array
-        return name
-    } else if (ast.kind === "OBJECT_NODE") {
-        // init the object
-        const name = c.new_local(c.get_type(ast))
-        c.push(block, {
-            kind: "CALLFN_OP",
-            result: name,
-            func: "alloc",
-            args: [c.get_type_size(ast)]
-        })
-
-        // add each item
-        for (const item of ast.items.values()) {
-            const v = build_expr(c, block, item.value)
-            c.push(block, {
-                kind: "STORE_OP",
-                target: name,
-                offset: c.get_type_field(ast, item.name!),
-                value: v
-            })
-        }
-
-        // return the local with the pointer to the array
-        return name
-    } else if (ast.kind === "OP_NODE") {
-        // compute the arguments to the op
-        const a = build_expr(c, block, ast.a)
-        const b = build_expr(c, block, ast.b)
-
-        // do the op
-        const name = c.new_local(IntType)
-        c.push(block, {
-            kind: "CALLFN_OP",
-            result: name,
-            func: ast.op,
-            args: [a, b] 
-        })
-
-        // return
-        return name
-    } else if (ast.kind === "TERNARY_NODE") {
-        // the local with the result of the ternary operation
-        const name = c.new_local(IntType)
-
-        // the exit block to go to afer we are done
-        const new_block = c.new_block()
-
-        // build branch a
-        const a = build_block(c, new_block, [{
-            kind: "ASSIGNMENT_NODE",
-            name: {
-                kind: "IDENT_NODE",
-                value: name
-            },
-            value: ast.a
-        }])
-
-        // build branch b
-        const b = build_block(c, new_block, [{
-            kind: "ASSIGNMENT_NODE",
-            name: {
-                kind: "IDENT_NODE",
-                value: name
-            },
-            value: ast.b
-        }])
-
-        // swap between branchs
-        c.push(block, {
-            kind: "BRANCH_OP",
-            cond: build_expr(c, [block[0]], ast.cond),
-            a, b
-        })
-    
-        // put the write head into the new block
-        block[0] = new_block
-    
-        // return the local
-        return name
-    } else if (ast.kind === "CALL_NODE") {
-
-        // make sure the thing we are calling is a function
-        if (ast.func.kind != "IDENT_NODE") {
-            throw new Error("Can only call ident node!")
-        }
-
-        // get the type signature of the function
-        const type = c.get_type(ast.func.value)
-
-        // the result of the function call
-        const name = c.new_local(type.args[1])
-
-        // call the function
-        c.push(block, {
-            kind: "CALLFN_OP",
-            result: name,
-            func: ast.func.value,
-            args: ast.args.map(arg => build_expr(c, block, arg))
-        })
-
-        // return the result
-        return name
-    } else if (ast.kind === "INDEX_NODE") {
-        // 
-        const name = c.new_local(IntType)
-
-        // 
-        const value = build_expr(c, block, ast.value)
-        const index = build_expr(c, block, ast.index) 
-
-        // 
-        if (typeof value == "number") {
-            throw new Error("Can not index number!")
-        }
-
-        // 
-        c.push(block, {
-            kind: "LOAD_OP",
-            result: name,
-            local: value,
-            offset: index,
-        })
-
-        // return the result
-        return name
-    } else if (ast.kind === "FIELD_NODE") {
-        // 
-        const name = c.new_local(IntType)
-
-        // 
-        const value = build_expr(c, block, ast.value)
-
-        // 
-        if (typeof value == "number") {
-            throw new Error("Can not field a number!")
-        }
-
-        //
-        const index = c.get_type_field(value, ast.field)
-
-        // 
-        c.push(block, {
-            kind: "LOAD_OP",
-            result: name,
-            local: value,
-            offset: index,
-        })
-
-        // return the result
-        return name
+function build_expr2(expr: ExprNode): string | number {
+    if (expr.kind === "NUMBER_NODE") {
+        return expr.value
+    } else if (expr.kind === "IDENT_NODE") {
+        return expr.value
     } else {
-        throw new Error(`Unimplement feature ${ast.kind}!`)
+        throw new Error(`build_expr2::unsupported::${expr.kind}`)
     }
 }
 
-function build_block(
-    c: Builder,
-    after: number,
-    ast: StatmentNode[]
-) {
-    const start_block = c.new_block()
-    const block = [start_block] as [number]
-
-    for (const stmt of ast) {
-        if (stmt.kind == "WHILE_NODE") {
-            const cond_block = c.new_block()
-            const after_block = c.new_block()
-            const body = build_block(c, cond_block, stmt.body)
-
-            c.push(block, {
-                kind: "JUMP_OP",
-                jump: cond_block,
-            })
-
-            c.push(cond_block, {
-                kind: "BRANCH_OP",
-                cond: build_expr(c, [cond_block], stmt.cond),
-                a: body, b: after_block
-            })
-
-            block[0] = after_block
-        }
-
-        if (stmt.kind == "ASSIGNMENT_NODE") {
-            const value = build_expr(c, block, stmt.value)
-
-            if (stmt.name.kind === "IDENT_NODE") {
-                c.push(block, {
-                    kind: "ASSIGN_OP",
-                    result: c.new_local(c.get_type(value), stmt.name.value),
-                    value: value
-                })
-            } else if (stmt.name.kind === "INDEX_NODE") {
-                c.push(block, {
-                    kind: "STORE_OP",
-                    target: build_expr(c, block, stmt.name.value) as string,
-                    offset: build_expr(c, block, stmt.name.index),
-                    value: build_expr(c, block, stmt.value)
-                })
-            } else {
-                throw new Error("UNSUPPORED ASSIGNMENT KIND!")
-            }            
-        }
-
-        if (stmt.kind == "DISCARD_NODE") {
-            build_expr(c, block, stmt.value)
-        }
-
-        if (stmt.kind == "IF_NODE") {
-            const new_block = c.new_block()
-
-            const a = build_block(c, new_block, stmt.a)
-            const b = build_block(c, new_block, stmt.b)
-
-            c.push(block, {
-                kind: "BRANCH_OP",
-                cond: build_expr(c, block, stmt.cond),
-                a, b
-            })
-
-            block[0] = new_block
-        }
-
-        if (stmt.kind == "RETURN_NODE") {
-            const value = build_expr(c, block, stmt.value)
-
-            c.push(block, {
-                kind: "RETURN_OP",
-                value: value,
-            })
-
-            return start_block
-        }
-    }
-
-    c.push(block, {
-        kind: "JUMP_OP",
-        jump: after
-    })
-
-    return start_block
-}
-
-function build_fn(ast: FuncNode, structs: Struct[], global: Types): Fn {
-    const b = new Builder(structs, global)
+function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
+    const c = new Builder(structs, global)
 
     for (const param of ast.params) {
-        b.locals.set(param.name, param.type)
+        c.locals.set(param.name, param.type)
     }
 
     for (const [key, type] of check(global, ast)) {
-        b.locals.set(key, type)
+        c.locals.set(key, type)
     }
 
-    build_block(b, Number.POSITIVE_INFINITY, ast.body)
+    const blocks: Op[][] = ast.body.map(block =>
+        block.flatMap((stmt): Op[] => {
+            if (stmt.kind === "JUMP_OP") {
+                return [stmt]
+            } else if (stmt.kind === "BRANCH_SSA") {
+                return [{
+                    kind: "BRANCH_OP",
+                    cond: build_expr2(stmt.cond),
+                    a: stmt.a, b: stmt.b
+                }]
+            } else if (stmt.kind === "ASSIGNMENT_NODE") {
+                if (stmt.name.kind === "IDENT_NODE") {
+                    if (stmt.value.kind === "CALL_NODE") {
+                        if (stmt.value.func.kind != "IDENT_NODE") {
+                            throw new Error(`can't call ${stmt.value.func.kind}!`)
+                        }
+        
+                        return [{
+                            kind: "CALLFN_OP",
+                            func: stmt.value.func.value,
+                            result: stmt.name.value,
+                            args: stmt.value.args.map(build_expr2)
+                        }]
+                    } else if (stmt.value.kind == "ARRAY_NODE") {
+                        const local = stmt.name.value
+                        return [{
+                            kind: "CALLFN_OP",
+                            func: "alloc",
+                            result: local,
+                            args: [ stmt.value.items.length ]
+                        }, ...stmt.value.items.map((item, i): Op => ({
+                            kind: "STORE_OP",
+                            target: local,
+                            offset: i,
+                            value: build_expr2(item)
+                        }))]
+                    } else if (stmt.value.kind == "OBJECT_NODE") {
+                        const local = stmt.name.value
+                        return [{
+                            kind: "CALLFN_OP",
+                            func: "alloc",
+                            result: local,
+                            args: [ c.get_type_size(stmt.value) ]
+                        }, ...stmt.value.items.map(item => ({
+                            kind: "STORE_OP",
+                            target: local,
+                            offset: c.get_type_field(stmt.value, item.name!),
+                            value: build_expr2(item.value)
+                        }) as Op)]
+                    } else if (stmt.value.kind == "INDEX_NODE") {
+                        return [{
+                            kind: "LOAD_OP",
+                            result: stmt.name.value,
+                            local: build_expr2(stmt.value.value) as string,
+                            offset: build_expr2(stmt.value.index)
+                        }]
+                    } else if (stmt.value.kind == "FIELD_NODE") {
+                        return [{
+                            kind: "LOAD_OP",
+                            result: stmt.name.value,
+                            local: build_expr2(stmt.value.value) as string,
+                            offset: c.get_type_field(stmt.value.value, stmt.value.field)
+                        }]
+                    } else {
+                        return [{
+                            kind: "ASSIGN_OP",
+                            result: stmt.name.value,
+                            value: build_expr2(stmt.value)
+                        }]
+                    }
+                } else if (stmt.name.kind === "INDEX_NODE") {
+                    return [{
+                        kind: "STORE_OP",
+                        target: build_expr2(stmt.name.value) as string,
+                        offset: build_expr2(stmt.name.index),
+                        value: build_expr2(stmt.value)
+                    }]
+                } else {
+                    throw new Error("UNSUPPORED ASSIGNMENT KIND!")
+                }
+            } else if (stmt.kind == "RETURN_NODE") {
+                return [{
+                    kind: "RETURN_OP",
+                    value: build_expr2(stmt.value)
+                }]
+            } else {
+                throw new Error("unreachable")
+            }
+        })
+    )
     
     return {
+        kind: "FN",
         name: ast.name,
         params: ast.params,
-        blocks: b.blocks,
+        blocks: blocks,
     }
 }
 
@@ -456,16 +287,16 @@ function build_struct(ast: StructNode): Struct {
     }
 }
 
-export function build(file: FileNode): Prog {
+export function build(file: Module): Prog {
     const global = build_module_types(file)
 
-    const structs = file
+    const structs = file.items
         .filter(node => node.kind == "STRUCT_NODE")
         .map(struct_node => build_struct(struct_node))
 
-    const fns = file
-        .filter(node => node.kind == "FUNC_NODE")
+    const fns = file.items
+        .filter(node => node.kind == "FUNC_SSA")
         .map(func_node => build_fn(func_node, structs, global))
 
-    return { fns, structs }
+    return { kind: "PROG", fns, structs }
 }

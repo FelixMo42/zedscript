@@ -4,11 +4,13 @@ import { lexer } from "./lang/lexer.ts";
 import { parse } from "./lang/parse.ts";
 import { runit, type Value } from "./lang/runit.ts";
 import { build } from "./lang/build.ts";
+import { lower } from "./lang/ast.ts";
 
 function run(src: string) {
     const tks = lexer(src)
     const ast = parse(tks)!
-    const bin = build(ast)
+    const ssa = lower(ast)
+    const bin = build(ssa)
     const out = runit(bin)
     return out
 }
@@ -190,8 +192,6 @@ Deno.test("return struct", () => assertEquals(run(`
         return mag(make())
     }
 `), 42))
-
-// Open
 Deno.test("return type signature", () => assertEquals(run(`
     struct Vec2 {
         x int
@@ -210,3 +210,72 @@ Deno.test("return type signature", () => assertEquals(run(`
         return sqrt(p.x ** 2 + p.y ** 2)
     }
 `), 42))
+
+// Open
+Deno.test("infernece in loop", () => assertEquals(run(`
+    struct Vec2 {
+        x int
+        y int
+    }
+
+    fn make() Vec2 {
+        if true {
+            a = { x: 42, y: 0 }
+            return a
+        }
+        return { x: 1, y: 1 }
+    }
+
+    fn main() int {
+        return make().x
+    }
+`), 42))
+Deno.test("array of struct", () => assertEquals(run(`
+    struct Vec2 {
+        x int
+        y int
+    }
+
+    fn mag(p Vec2) int {
+        return sqrt(p.x ** 2 + p.y ** 2)
+    }
+
+    fn main() int {
+        p = [
+            { x: 6, y: 0 }
+            { x: 0, y: 7 }
+        ]
+        return mag(p[0]) * mag(p[1])
+    }
+`), 42))
+Deno.test("array's return type signature", () => assertEquals(run(`
+    struct Vec2 {
+        x int
+        y int
+    }
+
+    fn make() Vec2's {
+        return [
+            { x: 6, y: 0 }
+            { x: 0, y: 7 }
+        ]
+    }
+
+    fn mag(p Vec2) int {
+        return sqrt(p.x ** 2 + p.y ** 2)
+    }
+
+    fn main() int {
+        p = make()
+        return mag(p[0]) * mag(p[1])
+    }
+`), 42))
+// Deno.test("anonymous structs", () => assertEquals(run(`
+//     fn main() int {
+//         p = {
+//             x: 6
+//             y: 7
+//         }
+//         return p.x * p.y
+//     }
+// `), 42))
