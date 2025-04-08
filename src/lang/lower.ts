@@ -11,7 +11,7 @@ export interface Module {
 export interface FuncSSA {
     kind: "FUNC_SSA"
     name: string
-    return_type: TypeNode
+    return: TypeNode
     params: ParamNode[]
     blocks: StatmentSSA[][]
 }
@@ -32,14 +32,26 @@ export type StatmentSSA
 
 /// BUILDER
 
+interface Local {
+    kind: "LOCAL"
+    id: number
+}
+
 class Builder {
-    id = 0
+    locals: Local[] = []
     blocks: StatmentSSA[][] = []
 
     new_local(): IdentNode {
+        const local: Local = {
+            kind: "LOCAL",
+            id: this.locals.length
+        }
+    
+        this.locals.push(local)
+
         return {
             kind: "IDENT_NODE",
-            value: `%${this.id++}`,
+            value: `%${local.id}`,
         }
     }
 
@@ -215,7 +227,7 @@ function funcToSSA(func: FuncNode): FuncSSA {
     return {
         kind: "FUNC_SSA",
         name: func.name,
-        return_type: func.return_type ?? Type("void"),
+        return: func.return_type ?? Type("void"),
         params: func.params,
         blocks: c.blocks
     }

@@ -1,13 +1,13 @@
 import { format } from "../util/format.ts";
 import { FuncSSA, Module } from "./lower.ts";
-import type { ExprNode, ParamNode, StructNode, TypeNode } from "./parse.ts";
+import type { ExprNode, ParamNode, TypeNode } from "./parse.ts";
 import { build_module_types, check, IntType, Types } from "./types.ts";
 
 // TYPES
 
 export interface Prog {
     kind: "PROG"
-    structs: Struct[]
+    global: Types
     fns: Fn[]
 }
 
@@ -63,12 +63,10 @@ export type Op = {
 type Typeable = string | number | ExprNode | TypeNode
 
 class Builder {
-    structs: Struct[]
     global: Types
     locals: Types
 
-    constructor(structs: Struct[], global: Types) {
-        this.structs = structs
+    constructor(global: Types) {
         this.global = global
         this.locals = new Map()
     }
@@ -87,16 +85,22 @@ class Builder {
 
     get_type_field(value: Typeable, name: string): number {
         const type = this.get_type(value)
-        const struct = this.structs.find(s => s.name === type.name)
 
-        if (!struct) {
-            throw new Error(`Can't find struct ${format(type)}`)
+        if (type.name != "@struct") {
+            // try reslove the struct
+            if (this.global.has(type.name)) {
+                return this.get_type_field(this.global.get(type.name)!, name)
+            }
+
+            // if not, we are a failure in life
+            throw new Error(`Can't get ${format(value)}.${name} of type ${format(type)} `)
         }
 
+        // iter the fields to count to the right position
         let index = 0
-        for (const field of struct.fields) {
+        for (const field of type.args) {
             if (field.name == name) break
-            index += this.get_type_size(field.type)
+            index += this.get_type_size(field.args[0])
         }
     
         return index
@@ -125,13 +129,16 @@ class Builder {
             return 1
         }
 
-        const struct = this.structs.find(s => s.name === type.name)
-        if (struct) {
+        if (type.name == "@struct") {
             let size = 0
-            for (const field of struct.fields) {
-                size += this.get_type_size(field.type)
+            for (const field of type.args) {
+                size += this.get_type_size(field.args[0])
             }
             return size
+        }
+
+        if (this.global.has(type.name)) {
+            return this.get_type_size(this.global.get(type.name)!)
         }
 
         throw new Error(`Can't get size of ${format(type)}!`)
@@ -148,18 +155,18 @@ function build_expr(expr: ExprNode): string | number {
     }
 }
 
-function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
-    const c = new Builder(structs, global)
+function build_fn(func: FuncSSA, global: Types): Fn {
+    const c = new Builder(global)
 
-    for (const param of ast.params) {
+    for (const param of func.params) {
         c.locals.set(param.name, param.type)
     }
 
-    for (const [key, type] of check(global, ast)) {
+    for (const [key, type] of check(global, func)) {
         c.locals.set(key, type)
     }
 
-    const blocks: Op[][] = ast.blocks.map(block =>
+    const blocks: Op[][] = func.blocks.map(block =>
         block.flatMap((stmt): Op[] => {
             if (stmt.kind === "JUMP_OP") {
                 return [stmt]
@@ -175,7 +182,7 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
                         if (stmt.value.func.kind != "IDENT_NODE") {
                             throw new Error(`can't call ${stmt.value.func.kind}!`)
                         }
-        
+
                         return [{
                             kind: "CALLFN_OP",
                             func: stmt.value.func.value,
@@ -252,32 +259,18 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
     
     return {
         kind: "FN",
-        name: ast.name,
-        params: ast.params,
+        name: func.name,
+        params: func.params,
         blocks: blocks,
-    }
-}
-
-function build_struct(ast: StructNode): Struct {
-    return {
-        name: ast.name,
-        fields: ast.fields.map((field) => ({
-            name: field.name,
-            type: field.type
-        }))
     }
 }
 
 export function build(file: Module): Prog {
     const global = build_module_types(file)
 
-    const structs = file.items
-        .filter(node => node.kind == "STRUCT_NODE")
-        .map(struct_node => build_struct(struct_node))
-
     const fns = file.items
         .filter(node => node.kind == "FUNC_SSA")
-        .map(func_node => build_fn(func_node, structs, global))
+        .map(func_node => build_fn(func_node, global))
 
-    return { kind: "PROG", fns, structs }
+    return { kind: "PROG", fns, global }
 }

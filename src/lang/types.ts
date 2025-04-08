@@ -36,16 +36,20 @@ export function build_module_types(file: Module): Types {
         if (n.kind === "FUNC_SSA") {
             types.set(n.name, Type("Fn",
                 Type("Tuple", ...n.params.map((p) => p.type)),
-                n.return_type,
+                n.return,
             ))
         } else if (n.kind === "STRUCT_NODE") {
-            types.set(n.name, Type(n.name))
+            types.set(n.name, Type("@struct",
+                ...n.fields.values().map(field =>
+                    Type(field.name, field.type)
+                )
+            ))
 
             for (const f of n.fields.values()) {
                 types.set(`${n.name}::${f.name}`, f.type)
             }
         } else {
-            throw new Error("UNSUPPORTED TOP LEVEL")
+            throw new Error("Unsupported top level node!")
         }
     })
 
@@ -161,10 +165,10 @@ function get_type(c: Ctx, n: ExprNode | StatmentSSA): TypeNode {
 
         return t
     } else if (n.kind === "RETURN_NODE") {
-        if (c.func.return_type) {
-            set_type(c, n.value, c.func.return_type)
+        if (c.func.return) {
+            set_type(c, n.value, c.func.return)
             get_type(c, n.value)
-            return c.func.return_type
+            return c.func.return
         } else {
             return get_type(c, n.value)
         }

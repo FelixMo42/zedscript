@@ -4,6 +4,7 @@ import { Op, Prog, Fn } from "../lang/build.ts"
 
 type Formatable
     = string
+    | number
     | undefined
     | TypeNode
     | FuncNode
@@ -28,6 +29,7 @@ function tab(s: string): string {
 export function format(v: Formatable): string {
     if (v === undefined) return ""
     if (typeof v === "string") return v
+    if (typeof v === "number") return String(v)
     if (v.kind == "FILE_NODE") {
         return v.items.map(format).join("\n\n")
     } else if (v.kind === "ARRAY_NODE") {
@@ -61,7 +63,7 @@ export function format(v: Formatable): string {
             `  $${i}\n${block.map(format).map(tab).join("\n")}`
         ).join("\n")}\n}`
     } else if (v.kind === "FUNC_SSA") {
-        return `fn ${v.name}(${v.params.map(format).join(", ")}) ${format(v.return_type)} {\n${v.blocks.map((block, i) =>
+        return `fn ${v.name}(${v.params.map(format).join(", ")}) ${format(v.return)} {\n${v.blocks.map((block, i) =>
             `  $${i}\n${block.map(format).map(tab).join("\n")}`
         ).join("\n")}\n}`
     } else if (v.kind == "ASSIGN_OP") {
