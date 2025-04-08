@@ -1,4 +1,4 @@
-import { FuncSSA, Module, StatmentSSA } from "../lang/ast.ts";
+import { FuncSSA, Module, StatmentSSA } from "../lang/lower.ts";
 import { ArgNode, ExprNode, FileNode, FuncNode, ParamNode, StatmentNode, TypeNode, StructNode } from "../lang/parse.ts";
 import { Op, Prog, Fn } from "../lang/build.ts"
 
@@ -61,7 +61,7 @@ export function format(v: Formatable): string {
             `  $${i}\n${block.map(format).map(tab).join("\n")}`
         ).join("\n")}\n}`
     } else if (v.kind === "FUNC_SSA") {
-        return `fn ${v.name}(${v.params.map(format).join(", ")}) ${format(v.return_type)} {\n${v.body.map((block, i) =>
+        return `fn ${v.name}(${v.params.map(format).join(", ")}) ${format(v.return_type)} {\n${v.blocks.map((block, i) =>
             `  $${i}\n${block.map(format).map(tab).join("\n")}`
         ).join("\n")}\n}`
     } else if (v.kind == "ASSIGN_OP") {

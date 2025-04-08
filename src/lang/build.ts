@@ -1,5 +1,5 @@
 import { format } from "../util/format.ts";
-import { FuncSSA, Module } from "./ast.ts";
+import { FuncSSA, Module } from "./lower.ts";
 import type { ExprNode, ParamNode, StructNode, TypeNode } from "./parse.ts";
 import { build_module_types, check, IntType, Types } from "./types.ts";
 
@@ -63,21 +63,14 @@ export type Op = {
 type Typeable = string | number | ExprNode | TypeNode
 
 class Builder {
-    id = 0
     structs: Struct[]
     global: Types
     locals: Types
-    blocks: Op[][] = []
 
     constructor(structs: Struct[], global: Types) {
         this.structs = structs
         this.global = global
         this.locals = new Map()
-    }
-
-    new_local(type: TypeNode, name: string="v" + String(this.id++)) {
-        this.locals.set(name, type)
-        return name
     }
 
     get_type(value: Typeable): TypeNode {
@@ -143,21 +136,9 @@ class Builder {
 
         throw new Error(`Can't get size of ${format(type)}!`)
     }
-
-    new_block() {
-        return this.blocks.push([]) - 1
-    }
-
-    push(block: number | [number], op: Op) {
-        if (typeof block == "number") {
-            this.blocks[block].push(op)
-        } else {
-            this.blocks[block[0]].push(op)
-        }
-    }
 }
 
-function build_expr2(expr: ExprNode): string | number {
+function build_expr(expr: ExprNode): string | number {
     if (expr.kind === "NUMBER_NODE") {
         return expr.value
     } else if (expr.kind === "IDENT_NODE") {
@@ -178,14 +159,14 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
         c.locals.set(key, type)
     }
 
-    const blocks: Op[][] = ast.body.map(block =>
+    const blocks: Op[][] = ast.blocks.map(block =>
         block.flatMap((stmt): Op[] => {
             if (stmt.kind === "JUMP_OP") {
                 return [stmt]
             } else if (stmt.kind === "BRANCH_SSA") {
                 return [{
                     kind: "BRANCH_OP",
-                    cond: build_expr2(stmt.cond),
+                    cond: build_expr(stmt.cond),
                     a: stmt.a, b: stmt.b
                 }]
             } else if (stmt.kind === "ASSIGNMENT_NODE") {
@@ -199,7 +180,7 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
                             kind: "CALLFN_OP",
                             func: stmt.value.func.value,
                             result: stmt.name.value,
-                            args: stmt.value.args.map(build_expr2)
+                            args: stmt.value.args.map(build_expr)
                         }]
                     } else if (stmt.value.kind == "ARRAY_NODE") {
                         const local = stmt.name.value
@@ -212,7 +193,7 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
                             kind: "STORE_OP",
                             target: local,
                             offset: i,
-                            value: build_expr2(item)
+                            value: build_expr(item)
                         }))]
                     } else if (stmt.value.kind == "OBJECT_NODE") {
                         const local = stmt.name.value
@@ -225,35 +206,35 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
                             kind: "STORE_OP",
                             target: local,
                             offset: c.get_type_field(stmt.value, item.name!),
-                            value: build_expr2(item.value)
+                            value: build_expr(item.value)
                         }) as Op)]
                     } else if (stmt.value.kind == "INDEX_NODE") {
                         return [{
                             kind: "LOAD_OP",
                             result: stmt.name.value,
-                            local: build_expr2(stmt.value.value) as string,
-                            offset: build_expr2(stmt.value.index)
+                            local: build_expr(stmt.value.value) as string,
+                            offset: build_expr(stmt.value.index)
                         }]
                     } else if (stmt.value.kind == "FIELD_NODE") {
                         return [{
                             kind: "LOAD_OP",
                             result: stmt.name.value,
-                            local: build_expr2(stmt.value.value) as string,
+                            local: build_expr(stmt.value.value) as string,
                             offset: c.get_type_field(stmt.value.value, stmt.value.field)
                         }]
                     } else {
                         return [{
                             kind: "ASSIGN_OP",
                             result: stmt.name.value,
-                            value: build_expr2(stmt.value)
+                            value: build_expr(stmt.value)
                         }]
                     }
                 } else if (stmt.name.kind === "INDEX_NODE") {
                     return [{
                         kind: "STORE_OP",
-                        target: build_expr2(stmt.name.value) as string,
-                        offset: build_expr2(stmt.name.index),
-                        value: build_expr2(stmt.value)
+                        target: build_expr(stmt.name.value) as string,
+                        offset: build_expr(stmt.name.index),
+                        value: build_expr(stmt.value)
                     }]
                 } else {
                     throw new Error("UNSUPPORED ASSIGNMENT KIND!")
@@ -261,7 +242,7 @@ function build_fn(ast: FuncSSA, structs: Struct[], global: Types): Fn {
             } else if (stmt.kind == "RETURN_NODE") {
                 return [{
                     kind: "RETURN_OP",
-                    value: build_expr2(stmt.value)
+                    value: build_expr(stmt.value)
                 }]
             } else {
                 throw new Error("unreachable")

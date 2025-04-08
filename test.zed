@@ -3,14 +3,17 @@ struct Vec2 {
     y int
 }
 
-fn make() Vec2 {
-    if true {
-        a = { x: 42, y: 0 }
-        return a
-    }
-    return { x: 1, y: 1 }
+fn mag(p Vec2) int {
+    x2 = p.x ** 2
+    y2 = p.y ** 2
+    return sqrt(x2 + y2)
 }
 
 fn main() int {
-    return make().x
+    p = [
+        { x: 6, y: 0 }
+        { x: 0, y: 7 }
+    ]
+
+    return mag(p[0]) * mag(p[1])
 }

@@ -4,7 +4,7 @@ import { lexer } from "./lang/lexer.ts";
 import { parse } from "./lang/parse.ts";
 import { runit, type Value } from "./lang/runit.ts";
 import { build } from "./lang/build.ts";
-import { lower } from "./lang/ast.ts";
+import { lower } from "./lang/lower.ts";
 
 function run(src: string) {
     const tks = lexer(src)

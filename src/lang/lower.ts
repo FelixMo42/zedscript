@@ -13,7 +13,7 @@ export interface FuncSSA {
     name: string
     return_type: TypeNode
     params: ParamNode[]
-    body: StatmentSSA[][]
+    blocks: StatmentSSA[][]
 }
 
 export type StatmentSSA
@@ -217,7 +217,7 @@ function funcToSSA(func: FuncNode): FuncSSA {
         name: func.name,
         return_type: func.return_type ?? Type("void"),
         params: func.params,
-        body: c.blocks
+        blocks: c.blocks
     }
 }
 

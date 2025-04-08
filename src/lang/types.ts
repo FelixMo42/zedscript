@@ -1,5 +1,5 @@
 import { format, log_types } from "../util/format.ts";
-import { FuncSSA, Module, StatmentSSA } from "./ast.ts";
+import { FuncSSA, Module, StatmentSSA } from "./lower.ts";
 import { global_types } from "./lib.ts";
 import { ExprNode, StatmentNode, TypeNode } from "./parse.ts";
 
@@ -245,7 +245,7 @@ export function check(globals: Types, func: FuncSSA) {
         ctx.tmap.set(c.name, c.type)
     }
 
-    for (const block of func.body) {
+    for (const block of func.blocks) {
         for (const stmt of block) {
             get_type(ctx, stmt)
         }
