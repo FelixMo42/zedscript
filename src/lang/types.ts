@@ -69,7 +69,7 @@ function newUnknow(c: Ctx) {
     return Type(`Unknown::${c.unknowns++}`)
 }
 
-function isUnknow(t: TypeNode) {
+export function isUnknow(t: TypeNode) {
     return t.name.startsWith("Unknown::")
 }
 
@@ -129,7 +129,9 @@ function set_type(c: Ctx, n: ExprNode | StatmentNode | TypeNode, t: TypeNode) {
     }
 }
 
-function get_type(c: Ctx, n: ExprNode | StatmentSSA): TypeNode {
+function get_type(c: Ctx, n: ExprNode | StatmentSSA | undefined, e?: TypeNode): TypeNode {
+    if (n == undefined) return newUnknow(c)
+
     if (n.kind === "NUMBER_NODE") {
         return IntType
     } else if (n.kind === "IDENT_NODE") {
@@ -137,20 +139,21 @@ function get_type(c: Ctx, n: ExprNode | StatmentSSA): TypeNode {
             return c.tmap.get(n.value)!
         }
 
-        const t = newUnknow(c)
+        if (e) {
+            c.tmap.set(n.value, e)
+            return e
+        } else {
+            const t = newUnknow(c)
+            c.tmap.set(n.value, t)
+            return t
+        }     
 
-        c.tmap.set(n.value, t)
-
-        return t
     } else if (n.kind === "ASSIGNMENT_NODE") {
         const a = get_type(c, n.value)
+        const b = get_type(c, n.name, a)
 
-        if (isUnknow(a)) {
-            const b = get_type(c, n.name)
+        if (isUnknow(a) && !isUnknow(b)) {
             set_type(c, a, b)
-            return b
-        } else {
-            set_type(c, n.name, a)
         }
 
         return a
@@ -159,11 +162,14 @@ function get_type(c: Ctx, n: ExprNode | StatmentSSA): TypeNode {
             return c.tmap.get(n)!
         }
 
-        const t = newUnknow(c)
-
-        set_type(c, n, t)
-
-        return t
+        if (e) {
+            c.tmap.set(n, e)
+            return e
+        } else {
+            const t = newUnknow(c)
+            set_type(c, n, t)
+            return t
+        }
     } else if (n.kind === "RETURN_NODE") {
         if (c.func.return) {
             set_type(c, n.value, c.func.return)
@@ -196,16 +202,22 @@ function get_type(c: Ctx, n: ExprNode | StatmentSSA): TypeNode {
         const a = get_type(c, n.value)
         return c.tmap.get(`${a.name}::${n.field}`)!
     } else if (n.kind === "TERNARY_NODE") {
-        get_type(c, n.b)
-        return get_type(c, n.a)
+        const b = get_type(c, n.b, e)
+        return get_type(c, n.a, b)
     } else if (n.kind === "ARRAY_NODE") {
-        return Type("array", IntType)
+        const item_type = get_type(c, n.items[0])
+
+        for (const item of n.items.slice(1)) {
+            set_type(c, item, item_type)
+        }
+
+        return Type("array", item_type)
     } else if (n.kind === "JUMP_OP") {
         return VoidType
     } else if (n.kind === "BRANCH_SSA") {
         return VoidType
     } else if (n.kind === "INDEX_NODE") {
-        return IntType
+        return get_type(c, n.value).args[0]
     } else {
         throw new Error("?????: " + n.kind)
     }
@@ -218,19 +230,13 @@ function collapseUnknowns(t: Types) {
 
             if (!temp) {
                 log_types(t)
-                throw new Error("Unknown type!")
+                throw new Error(`Unknown type for ${format(key)}!`)
             }
 
             value = temp
         }
 
         t.set(key, value)
-    }
-
-    for (const key of t.keys()) {
-        if (typeof key === "string" && key.startsWith("Unknown")) {
-            t.delete(key)
-        }
     }
 }
 

@@ -1,7 +1,7 @@
 import { format } from "../util/format.ts";
 import { FuncSSA, Module } from "./lower.ts";
 import type { ExprNode, ParamNode, TypeNode } from "./parse.ts";
-import { build_module_types, check, IntType, Types } from "./types.ts";
+import { build_module_types, check, IntType, isUnknow, Types } from "./types.ts";
 
 // TYPES
 
@@ -75,6 +75,10 @@ class Builder {
         if (typeof value == "number") {
             return IntType
         } else if (typeof value == "object" && value.kind === "TYPE_NODE") {
+            if (isUnknow(value)) {
+                return this.get_type(this.locals.get(value.name)!)
+            }
+
             return value
         } else if (typeof value == "object" && value.kind === "IDENT_NODE") {
             return this.get_type(value.value)
@@ -123,6 +127,10 @@ class Builder {
             }
 
             return this.get_type_size(k)
+        }
+
+        if (isUnknow(type)) {
+            return this.get_type_size(this.locals.get(type.name)!)
         }
 
         if (type.name === "int") {
@@ -195,7 +203,7 @@ function build_fn(func: FuncSSA, global: Types): Fn {
                             kind: "CALLFN_OP",
                             func: "alloc",
                             result: local,
-                            args: [ stmt.value.items.length ]
+                            args: [ stmt.value.items.length * c.get_type_size(c.get_type(local).args[0]) ]
                         }, ...stmt.value.items.map((item, i): Op => ({
                             kind: "STORE_OP",
                             target: local,

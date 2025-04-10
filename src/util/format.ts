@@ -32,6 +32,8 @@ export function format(v: Formatable): string {
     if (typeof v === "number") return String(v)
     if (v.kind == "FILE_NODE") {
         return v.items.map(format).join("\n\n")
+    } else if (v.kind === "TERNARY_NODE") {
+        return `${format(v.a)} if ${format(v.cond)} else ${format(v.b)}`
     } else if (v.kind === "ARRAY_NODE") {
         return `[${v.items.map(format).join(", ")}]`
     } else if (v.kind === "IF_NODE") {
