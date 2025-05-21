@@ -27,7 +27,7 @@ function tab(s: string): string {
 }
 
 export function format(v: Formatable): string {
-    if (v === undefined) return ""
+    if (v === undefined) return "~"
     if (typeof v === "string") return v
     if (typeof v === "number") return String(v)
     if (v.kind == "FILE_NODE") {

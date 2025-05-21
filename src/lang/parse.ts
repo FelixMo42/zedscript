@@ -1,3 +1,4 @@
+import { p, s } from "../parser/dsl.ts";
 import type { TokenStream } from "./lexer.ts";
 
 export type FileNode = {
@@ -174,43 +175,23 @@ export function parse_struct(tks: TokenStream): StructNode | undefined {
 }
 
 export function parse_type(tks: TokenStream): TypeNode | undefined {
-    const save = tks.save()
-    
-    if (tks.take("(")) {
-        const args = []
-
-        while (!tks.take(")")) {
-            args.push(parse_type(tks)!)
-            tks.take(",")
-        }
-
-        return {
+    return (
+        p<TypeNode>(["(", s("args", parse_type, ","), ")"], tks, (v) => ({
             kind: "TYPE_NODE",
             name: "Tuple",
-            args,
-        }
-    }
-
-    const name = tks.take("<ident>")
-    if (name) {
-        const args = []
-
-        if (tks.take("<")) {
-            while (!tks.take(">")) {
-                args.push(parse_type(tks)!)
-                tks.take(",")
-            }
-        }
-        
-        return {
+            args: v.args,
+        })) ??
+        p<TypeNode>([s("name", "<ident>"), "<", s("args", parse_type, ","), ">"], tks, (v) => ({
             kind: "TYPE_NODE",
-            name,
-            args,
-        }
-    }
-
-    tks.load(save)
-    return undefined
+            name: v.name,
+            args: v.args,
+        })) ??
+        p<TypeNode>([s("name", "<ident>")], tks, (v) => ({
+            kind: "TYPE_NODE",
+            name: v.name,
+            args: [],
+        }))
+    )
 }
 
 export function parse_func(tks: TokenStream): FuncNode | undefined {
@@ -277,7 +258,6 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     }
 
     const expr = parse_expr(tks)
-    
 
     if (expr && tks.take("=")) {
         return {

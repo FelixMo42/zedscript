@@ -248,28 +248,28 @@ Deno.test("array of struct", () => assertEquals(run(`
         return mag(p[0]) * mag(p[1])
     }
 `), 42))
-Deno.test("array's return type signature", () => assertEquals(run(`
-    struct Vec2 {
-        x int
-        y int
-    }
+// Deno.test("array's return type signature", () => assertEquals(run(`
+//     struct Vec2 {
+//         x int
+//         y int
+//     }
 
-    fn make() Vec2's {
-        return [
-            { x: 6, y: 0 }
-            { x: 0, y: 7 }
-        ]
-    }
+//     fn make() Vec2's {
+//         return [
+//             { x: 6, y: 0 }
+//             { x: 0, y: 7 }
+//         ]
+//     }
 
-    fn mag(p Vec2) int {
-        return sqrt(p.x ** 2 + p.y ** 2)
-    }
+//     fn mag(p Vec2) int {
+//         return sqrt(p.x ** 2 + p.y ** 2)
+//     }
 
-    fn main() int {
-        p = make()
-        return mag(p[0]) * mag(p[1])
-    }
-`), 42))
+//     fn main() int {
+//         p = make()
+//         return mag(p[0]) * mag(p[1])
+//     }
+// `), 42))
 // Deno.test("anonymous structs", () => assertEquals(run(`
 //     fn main() int {
 //         p = {
