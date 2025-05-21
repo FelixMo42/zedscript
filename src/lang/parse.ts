@@ -133,45 +133,25 @@ export interface TypeNode {
 // TOP LEVEL //
 
 export function parse_file(tks: TokenStream): FileNode {
-    const items = []
-
-    while (true) {
-        const node = parse_func(tks) ?? parse_struct(tks)
-        if (!node) break
-        items.push(node)
-    }
-
-    return {
+    return p<FileNode>([s("items", (t) => parse_func(t) ?? parse_struct(t), "*")], tks, (n) => ({
         kind: "FILE_NODE",
-        items
-    }
+        items: n.items
+    }))!
+}
+
+function parse_param_node(tks: TokenStream): ParamNode | undefined {
+    return p<ParamNode>([
+        s("name", "<ident>"),
+        s("type", parse_type)
+    ], tks, "PARAM_NODE")
 }
 
 export function parse_struct(tks: TokenStream): StructNode | undefined {
-    const save = tks.save()
-
-    if (tks.take("struct")) { 
-        const name = tks.take("<ident>")!
-        tks.take("{")
-        const fields: ParamNode[] = []
-        while (tks.peak("<ident>")) {
-            fields.push({
-                kind: "PARAM_NODE",
-                name: tks.take("<ident>")!,
-                type: parse_type(tks)!,
-            })
-        }
-        tks.take("}")
-
-        return {
-            kind: "STRUCT_NODE",
-            name,
-            fields
-        }
-    }
-
-    tks.load(save)
-    return undefined
+    return p<StructNode>([
+        "struct", s("name", "<ident>"), "{",
+            s("fields", parse_param_node, "*"),
+        "}"
+    ], tks, "STRUCT_NODE")
 }
 
 export function parse_type(tks: TokenStream): TypeNode | undefined {
@@ -195,127 +175,55 @@ export function parse_type(tks: TokenStream): TypeNode | undefined {
 }
 
 export function parse_func(tks: TokenStream): FuncNode | undefined {
-    const save = tks.save()
-
-    if (tks.take("fn")) {
-        const name = tks.take("<ident>")!
-
-        // params
-        tks.take("(")
-        const params: ParamNode[] = []
-        while (!tks.peak(")")) {
-            params.push({
-                kind: "PARAM_NODE",
-                name: tks.take("<ident>")!,
-                type: parse_type(tks)!,
-            })
-            tks.take(",")
-        }
-        tks.take(")")
-
-        // return type
-        const return_type = parse_type(tks)
-
-        // body
-        tks.take("{")
-        const body = parse_stmts(tks)
-        tks.take("}")
-
-        // returns
-        return { kind: "FUNC_NODE", name, return_type, body, params }
-    }
-    
-    tks.load(save)
-    return undefined
+    return p<FuncNode>([
+        "fn", s("name", "<ident>"), "(",
+            s("params", parse_param_node, ","),
+        ")", s("return_type", parse_type), "{",
+            s("body", parse_stmt, "*"),
+        "}"
+    ], tks, "FUNC_NODE")
 }
 
 // STATMENTS //
 
-function parse_stmts(tks: TokenStream): StatmentNode[] {
-    const stmts = []
-    while (true) {
-        const stmt = parse_stmt(tks)!
-        if (!stmt) break
-        stmts.push(stmt)
-    }
-    return stmts
-}
-
 function parse_stmt(tks: TokenStream): StatmentNode | undefined {
-    const save = tks.save()
-
-    const if_node = parse_if(tks)
-    if (if_node) return if_node
-
-    const while_node = parse_while(tks)
-    if (while_node) return while_node
-
-    if (tks.take("return")) {
-        return {
-            kind: "RETURN_NODE",
-            value: parse_expr(tks)!
-        }
-    }
-
-    const expr = parse_expr(tks)
-
-    if (expr && tks.take("=")) {
-        return {
-            kind: "ASSIGNMENT_NODE",
-            name: expr,
-            value: parse_expr(tks)!
-        }
-    }
-
-    if (expr) return {
-        kind: "DISCARD_NODE",
-        value: expr
-    }
-
-    tks.load(save)
-    return undefined
+    return (
+        parse_if(tks) ??
+        parse_while(tks) ??
+        p<ReturnNode>(["return", s("value", parse_expr)], tks, "RETURN_NODE") ??
+        p<AssignmentNode>([s("name", parse_expr), "=", s("value", parse_expr)], tks, "ASSIGNMENT_NODE") ??
+        p<DiscardNode>([s("name", parse_expr)], tks, "DISCARD_NODE")
+    )
 }
 
 function parse_if(tks: TokenStream): StatmentNode | undefined {
-    if (tks.take("if")) {
-        const cond = parse_expr(tks)!
-        tks.take("{")
-        const a = parse_stmts(tks)
-        tks.take("}")
-        let b: StatmentNode[] = []
-
-        if (tks.take("else")) {
-            if (tks.peak("if")) {
-                b = [parse_if(tks)!]
-            } else {
-                tks.take("{")
-                b = parse_stmts(tks)
-                tks.take("}") 
-            }            
-        }
-
-        return {
-            kind: "IF_NODE",
-            cond,
-            a,
-            b
-        }
-    }
+    return p<IfNode>([
+        "if", s("cond", parse_expr), "{",
+            s("a", parse_stmt, "*"),
+        "}", "else", "{",
+            s("b", parse_stmt, "*"),
+        "}"
+    ], tks, "IF_NODE") ?? p<IfNode>([
+        "if", s("cond", parse_expr), "{",
+            s("a", parse_stmt, "*"),
+        "}", "else", s("b", (tks) => [parse_if(tks)!])
+    ], tks, "IF_NODE") ?? p<IfNode>([
+        "if", s("cond", parse_expr), "{",
+            s("a", parse_stmt, "*"),
+        "}"
+    ], tks, (n) => ({
+        kind: "IF_NODE",
+        b: [],
+        ...n
+    }))
 }
 
 function parse_while(tks: TokenStream): StatmentNode | undefined {
-    if (tks.take("while")) {
-        const cond = parse_expr(tks)!
-        tks.take("{")
-        const body = parse_stmts(tks)
-        tks.take("}")
-
-        return {
-            kind: "WHILE_NODE",
-            cond,
-            body,
-        }
-    }
+    return p([
+        "while", s("cond", parse_expr), "{",
+            s("body", parse_stmt, "*"),
+        "}"
+    ], tks, "WHILE_NODE")
 }
 
 // INDEX_NODEESSIONS //

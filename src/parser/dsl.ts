@@ -19,7 +19,7 @@ function $apply(tks: TokenStream, step: FullStep) {
     return typeof step.step === "string" ? tks.take(step.step) : step.step(tks)
 }
 
-export function p<T>(rule: Rule, tks: TokenStream, build: (node: any) => T): T | undefined {
+export function p<T>(rule: Rule, tks: TokenStream, build: string | ((node: any) => T)): T | undefined {
     const node = {} as any
     const save = tks.save()
 
@@ -34,8 +34,16 @@ export function p<T>(rule: Rule, tks: TokenStream, build: (node: any) => T): T |
 
             while (true) {
                 const v = $apply(tks, step)
-                if (!v) break 
+                if (!v) break
                 tks.take(",")
+                node[step.name].push(v)
+            }
+        } else if (step.mod == "*") {
+            node[step.name] = []
+
+            while (true) {
+                const v = $apply(tks, step)
+                if (!v) break
                 node[step.name].push(v)
             }
         } else {
@@ -50,5 +58,12 @@ export function p<T>(rule: Rule, tks: TokenStream, build: (node: any) => T): T |
         }
     }
 
-    return build(node)
+    if (typeof build === "string") {
+        return {
+            kind: build,
+            ...node
+        }
+    } else {
+        return build(node)
+    }
 }

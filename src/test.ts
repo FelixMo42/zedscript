@@ -223,6 +223,7 @@ Deno.test("infernece in loop", () => assertEquals(run(`
             a = { x: 42, y: 0 }
             return a
         }
+
         return { x: 1, y: 1 }
     }
 
