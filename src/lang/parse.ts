@@ -233,21 +233,9 @@ function parse_expr(tks: TokenStream): ExprNode | undefined  {
 }
 
 function parse_ternary(tks: TokenStream): ExprNode | undefined  {
-    const a = parse_eq(tks)!
-
-    if (tks.take("if")) {
-        const cond = parse_expr(tks)!
-        tks.take("else")
-        const b = parse_expr(tks)!
-        return {
-            kind: "TERNARY_NODE",
-            cond,
-            a,
-            b
-        }
-    }
-
-    return a
+    return p<ExprNode>([
+        s("a", parse_eq), "if", s("cond", parse_expr), "else", s("b", parse_expr)
+    ], tks, "TERNARY_NODE") ?? parse_eq(tks)
 }
 
 function parse_eq(tks: TokenStream): ExprNode | undefined  {
@@ -267,52 +255,20 @@ function parse_ex(tks: TokenStream): ExprNode | undefined  {
 }
 
 function parse_index(tks: TokenStream): ExprNode | undefined {
-    const value = parse_call(tks)!
-    if (!value) return undefined
-
-    if (tks.take("[")) {
-        const index = parse_expr(tks)!
-        tks.take("]")
-
-        return {
-            kind: "INDEX_NODE",
-            value,
-            index
-        }
-    }
-
-    if (tks.take(".")) {
-        const field = tks.take("<ident>")!
-
-        return {
-            kind: "FIELD_NODE",
-            value,
-            field,
-        }
-    }
-
-    return value
+    return p<ExprNode>([
+        s("value", parse_call), "[", s("index", parse_expr), "]",
+    ], tks, "INDEX_NODE") ??
+    p<ExprNode>([
+        s("value", parse_call), ".", s("field", "<ident>"),
+    ], tks, "FIELD_NODE") ??
+    parse_call(tks)
 }
 
 function parse_call(tks: TokenStream): ExprNode | undefined {
-    const value = parse_value(tks)!
-
-    if (tks.take("(")) {
-        const args = []
-        while (!tks.peak(")")) {
-            args.push(parse_expr(tks)!)
-            tks.take(",")
-        }
-        tks.take(")")
-
-        return {
-            kind: "CALL_NODE",
-            func: value,
-            args,
-        }
-    }
-
-    return value
+    return p<ExprNode>([
+        s("func", parse_value), "(", s("args", parse_expr, ","), ")",
+    ], tks, "CALL_NODE") ??
+    parse_value(tks)
 }
 
 function parse_arg_name(tks: TokenStream): string | undefined {
@@ -328,77 +284,32 @@ function parse_arg_name(tks: TokenStream): string | undefined {
 }
 
 function parse_value(tks: TokenStream): ExprNode | undefined {
-    const save = tks.save()
-
-    if (tks.take("{")) {
-        const items: ArgNode[] = []
-
-        while (!tks.peak("}")) {
-            const name = parse_arg_name(tks)
-            items.push({
-                kind: "ARG_NODE",
-                name,
-                value: parse_expr(tks)!
-            })
-            tks.take(",")
-        }
-
-        tks.take("}")
-
-        return {
-            kind: "OBJECT_NODE",
-            items
-        }
-    }
-
-    if (tks.take("[")) {
-        const items: ExprNode[] = []
-
-        while (!tks.peak("]")) {
-            items.push(parse_expr(tks)!)
-            tks.take(",")
-        }
-
-        tks.take("]")
-
-        return {
-            kind: "ARRAY_NODE",
-            items
-        }
-    }
-
-    const num = tks.take("<number>")
-    if (num) {
-        return {
-            kind: "NUMBER_NODE",
-            value: Number(num)
-        }
-    }
-
-    const text = tks.take("<string>")
-    if (text) {
-        return {
-            kind: "STRING_NODE",
-            value: text
-        }
-    }
-
-    const ident = tks.take("<ident>")
-    if (ident) {
-        return {
-            kind: "IDENT_NODE",
-            value: ident
-        }
-    }
-
-    if (tks.take("(")) {
-        const expr = parse_expr(tks)
-        tks.take(")")
-        return expr
-    }
-
-    tks.load(save)
-    return undefined
+    return p<ObjectNode>([
+        "{",
+            s("items", (tks) => p<ArgNode>([
+                s("name", parse_arg_name),
+                s("value", parse_expr)
+            ], tks, "ARG_NODE"), ","),
+        "}"
+    ], tks, "OBJECT_NODE") ??
+    p<ArrayNode>([
+        "[",
+            s("items", parse_expr, ","),
+        "]"
+    ], tks, "ARRAY_NODE") ??
+    p<NumberNode>([s("value", "<number>")], tks, (node) => ({
+        kind: "NUMBER_NODE",
+        value: Number(node.value)
+    })) ??
+    p<StringNode>([s("value", "<string>")], tks, (node) => ({
+        kind: "STRING_NODE",
+        value: node.value
+    })) ??
+    p<IdentNode>([s("value", "<ident>")], tks, (node) => ({
+        kind: "IDENT_NODE",
+        value: node.value
+    })) ??
+    p<ExprNode>(["(", s("expr", parse_expr), ")"], tks, (n) => n.expr)
 }
 
 // UTIL //

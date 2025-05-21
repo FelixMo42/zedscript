@@ -64,7 +64,6 @@ interface Ctx {
     tmap: Types
 }
 
-
 function newUnknow(c: Ctx) {
     return Type(`Unknown::${c.unknowns++}`)
 }
