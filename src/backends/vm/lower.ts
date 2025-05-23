@@ -1,4 +1,4 @@
-import type { AssignmentNode, ExprNode, FileNode, FuncNode, IdentNode, ParamNode, ReturnNode, StatmentNode, StructNode, TypeNode } from "./parse.ts";
+import type { AssignmentNode, ExprNode, FileNode, FuncNode, IdentNode, ParamNode, ReturnNode, StatmentNode, StructNode, TypeNode } from "../../lang/parse.ts";
 import { Type } from "./types.ts";
 
 /// TYPES

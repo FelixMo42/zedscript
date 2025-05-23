@@ -1,7 +1,7 @@
-import { format, log_types } from "../util/format.ts";
+import { format, log_types } from "../../util/format.ts";
 import { FuncSSA, Module, StatmentSSA } from "./lower.ts";
-import { global_types } from "./lib.ts";
-import { ExprNode, StatmentNode, TypeNode } from "./parse.ts";
+import { global_types } from "../../lang/lib.ts";
+import { ExprNode, StatmentNode, TypeNode } from "../../lang/parse.ts";
 
 /// Common
 

@@ -1,23 +1,10 @@
 import { assertEquals } from "jsr:@std/assert";
 
-import { lexer } from "./lang/lexer.ts";
-import { parse } from "./lang/parse.ts";
-import { runit, type Value } from "./lang/runit.ts";
-import { build } from "./lang/build.ts";
-import { lower } from "./lang/lower.ts";
+import { exec } from "./backends/js/index.ts";
 
-function run(src: string) {
-    const tks = lexer(src)
-    const ast = parse(tks)!
-    const ssa = lower(ast)
-    const bin = build(ssa)
-    const out = runit(bin)
-    return out
-}
-
-function assert_stmt(stmt: string, value: Value) {
+function assert_stmt(stmt: string, value: number | boolean) {
     const type = typeof value == "number" ? "int" : "bool" 
-    return assertEquals(run(`
+    return assertEquals(exec(`
         fn main() ${type} {
             return ${stmt}
         }    
@@ -40,13 +27,13 @@ Deno.test("6 * 7 > 6 * 6 + 2", () => assert_stmt(`6 * 7 > 6 * 6 + 2`, true))
 Deno.test("6 * 7 < 6 * 6 + 2", () => assert_stmt(`6 * 7 < 6 * 6 + 2`, false))
 Deno.test("6 * 7 >= 6 * 6 + 2", () => assert_stmt(`6 * 7 >= 6 * 6 + 2`, true))
 Deno.test("6 * 7 <= 6 * 6 + 2", () => assert_stmt(`6 * 7 <= 6 * 6 + 2`, false))
-Deno.test("one variable", () => assertEquals(run(`
+Deno.test("one variable", () => assertEquals(exec(`
     fn main() int {
         a = 3 + 3
         return a * 7
     } 
 `), 42))
-Deno.test("two variable", () => assertEquals(run(`
+Deno.test("two variable", () => assertEquals(exec(`
     fn main() int {
         a = 3 + 3
         b = 14 / 2 - 1
@@ -62,7 +49,7 @@ Deno.test("ternary else if", () => assert_stmt(`
     10 if 0 > 9000 else
     0
 `, 0))
-Deno.test("if with return", () => assertEquals(run(`
+Deno.test("if with return", () => assertEquals(exec(`
     fn main() int {
         if true {
             return 4
@@ -71,7 +58,7 @@ Deno.test("if with return", () => assertEquals(run(`
         return 5
     }
 `), 4))
-Deno.test("if else with return", () => assertEquals(run(`
+Deno.test("if else with return", () => assertEquals(exec(`
     fn main() int {
         if true {
             return 4
@@ -80,7 +67,7 @@ Deno.test("if else with return", () => assertEquals(run(`
         }
     }
 `), 4))
-Deno.test("if else with var assignment", () => assertEquals(run(`
+Deno.test("if else with var assignment", () => assertEquals(exec(`
     fn main() int {
         if 42 > 10000 {
             a = 4
@@ -91,12 +78,12 @@ Deno.test("if else with var assignment", () => assertEquals(run(`
         return a
     }
 `), 2))
-Deno.test("built in function call", () => assertEquals(run(`
+Deno.test("built in function call", () => assertEquals(exec(`
     fn main() int {
         return max(42, 9000)
     }
 `), 9000))
-Deno.test("two functions", () => assertEquals(run(`
+Deno.test("two functions", () => assertEquals(exec(`
     fn the_number_six() int {
         return 6
     }
@@ -105,7 +92,7 @@ Deno.test("two functions", () => assertEquals(run(`
         return the_number_six() * 7
     }
 `), 42))
-Deno.test("function paramaters", () => assertEquals(run(`
+Deno.test("function paramaters", () => assertEquals(exec(`
     fn add(a int, b int) int {
         return a + b
     }
@@ -114,7 +101,7 @@ Deno.test("function paramaters", () => assertEquals(run(`
         return add(40, 2)
     }
 `), 42))
-Deno.test("fibonacci", () => assertEquals(run(`
+Deno.test("fibonacci", () => assertEquals(exec(`
     fn fib(n int) int {
         a = 0
         b = 1
@@ -136,25 +123,25 @@ Deno.test("fibonacci", () => assertEquals(run(`
 `), 8))
 Deno.test("sqrt", () => assert_stmt("sqrt(4)", 2))
 Deno.test("2 ** 3", () => assert_stmt("2 ** 3", 8))
-Deno.test("array", () => assertEquals(run(`
+Deno.test("array", () => assertEquals(exec(`
     fn main() int {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
 `), 42))
-Deno.test("array index const", () => assertEquals(run(`
+Deno.test("array index const", () => assertEquals(exec(`
     fn main() int {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
 `), 42))
-Deno.test("array index dyn", () => assertEquals(run(`
+Deno.test("array index dyn", () => assertEquals(exec(`
     fn main() int {
         ptr = [40, 2]
         return ptr[0] + ptr[1]
     }
 `), 42))
-Deno.test("Vec2 magnitude", () => assertEquals(run(`
+Deno.test("Vec2 magnitude", () => assertEquals(exec(`
     struct Vec2 {
         x int
         y int
@@ -171,7 +158,7 @@ Deno.test("Vec2 magnitude", () => assertEquals(run(`
         })
     }
 `), 42))
-Deno.test("return struct", () => assertEquals(run(`
+Deno.test("return struct", () => assertEquals(exec(`
     struct Vec2 {
         x int
         y int
@@ -192,7 +179,7 @@ Deno.test("return struct", () => assertEquals(run(`
         return mag(make())
     }
 `), 42))
-Deno.test("return type signature", () => assertEquals(run(`
+Deno.test("return type signature", () => assertEquals(exec(`
     struct Vec2 {
         x int
         y int
@@ -212,7 +199,7 @@ Deno.test("return type signature", () => assertEquals(run(`
 `), 42))
 
 // Open
-Deno.test("infernece in loop", () => assertEquals(run(`
+Deno.test("infernece in loop", () => assertEquals(exec(`
     struct Vec2 {
         x int
         y int
@@ -231,7 +218,7 @@ Deno.test("infernece in loop", () => assertEquals(run(`
         return make().x
     }
 `), 42))
-Deno.test("array of struct", () => assertEquals(run(`
+Deno.test("array of struct", () => assertEquals(exec(`
     struct Vec2 {
         x int
         y int

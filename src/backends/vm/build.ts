@@ -1,6 +1,6 @@
-import { format } from "../util/format.ts";
+import { format } from "../../util/format.ts";
 import { FuncSSA, Module } from "./lower.ts";
-import type { ExprNode, ParamNode, TypeNode } from "./parse.ts";
+import type { ExprNode, ParamNode, TypeNode } from "../../lang/parse.ts";
 import { build_module_types, check, IntType, isUnknow, Types } from "./types.ts";
 
 // TYPES
