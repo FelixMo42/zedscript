@@ -1,4 +1,4 @@
-import { p, s } from "../parser/dsl.ts";
+import { p } from "../parser/dsl.ts";
 import type { TokenStream } from "./lexer.ts";
 
 export type FileNode = {
@@ -133,7 +133,7 @@ export interface TypeNode {
 // TOP LEVEL //
 
 export function parse_file(tks: TokenStream): FileNode {
-    return p<FileNode>([s("items", (t) => parse_func(t) ?? parse_struct(t), "*")], tks, (n) => ({
+    return p<FileNode>([["items", (t) => parse_func(t) ?? parse_struct(t), "*"]], tks, (n) => ({
         kind: "FILE_NODE",
         items: n.items
     }))!
@@ -141,32 +141,32 @@ export function parse_file(tks: TokenStream): FileNode {
 
 function parse_param_node(tks: TokenStream): ParamNode | undefined {
     return p<ParamNode>([
-        s("name", "<ident>"),
-        s("type", parse_type)
+        ["name", "<ident>"],
+        ["type", parse_type]
     ], tks, "PARAM_NODE")
 }
 
 export function parse_struct(tks: TokenStream): StructNode | undefined {
     return p<StructNode>([
-        "struct", s("name", "<ident>"), "{",
-            s("fields", parse_param_node, "*"),
+        "struct", ["name", "<ident>"], "{",
+            ["fields", parse_param_node, "*"],
         "}"
     ], tks, "STRUCT_NODE")
 }
 
 export function parse_type(tks: TokenStream): TypeNode | undefined {
     return (
-        p<TypeNode>(["(", s("args", parse_type, ","), ")"], tks, (v) => ({
+        p<TypeNode>(["(", ["args", parse_type, ","], ")"], tks, (v) => ({
             kind: "TYPE_NODE",
             name: "Tuple",
             args: v.args,
         })) ??
-        p<TypeNode>([s("name", "<ident>"), "<", s("args", parse_type, ","), ">"], tks, (v) => ({
+        p<TypeNode>([["name", "<ident>"], "<", ["args", parse_type, ","], ">"], tks, (v) => ({
             kind: "TYPE_NODE",
             name: v.name,
             args: v.args,
         })) ??
-        p<TypeNode>([s("name", "<ident>")], tks, (v) => ({
+        p<TypeNode>([["name", "<ident>"]], tks, (v) => ({
             kind: "TYPE_NODE",
             name: v.name,
             args: [],
@@ -176,10 +176,10 @@ export function parse_type(tks: TokenStream): TypeNode | undefined {
 
 export function parse_func(tks: TokenStream): FuncNode | undefined {
     return p<FuncNode>([
-        "fn", s("name", "<ident>"), "(",
-            s("params", parse_param_node, ","),
-        ")", s("return_type", parse_type), "{",
-            s("body", parse_stmt, "*"),
+        "fn", ["name", "<ident>"], "(",
+            ["params", parse_param_node, ","],
+        ")", ["return_type", parse_type], "{",
+            ["body", parse_stmt, "*"],
         "}"
     ], tks, "FUNC_NODE")
 }
@@ -190,26 +190,26 @@ function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     return (
         parse_if(tks) ??
         parse_while(tks) ??
-        p<ReturnNode>(["return", s("value", parse_expr)], tks, "RETURN_NODE") ??
-        p<AssignmentNode>([s("name", parse_expr), "=", s("value", parse_expr)], tks, "ASSIGNMENT_NODE") ??
-        p<DiscardNode>([s("name", parse_expr)], tks, "DISCARD_NODE")
+        p<ReturnNode>(["return", ["value", parse_expr]], tks, "RETURN_NODE") ??
+        p<AssignmentNode>([["name", parse_expr], "=", ["value", parse_expr]], tks, "ASSIGNMENT_NODE") ??
+        p<DiscardNode>([["name", parse_expr]], tks, "DISCARD_NODE")
     )
 }
 
 function parse_if(tks: TokenStream): StatmentNode | undefined {
     return p<IfNode>([
-        "if", s("cond", parse_expr), "{",
-            s("a", parse_stmt, "*"),
+        "if", ["cond", parse_expr], "{",
+            ["a", parse_stmt, "*"],
         "}", "else", "{",
-            s("b", parse_stmt, "*"),
+            ["b", parse_stmt, "*"],
         "}"
     ], tks, "IF_NODE") ?? p<IfNode>([
-        "if", s("cond", parse_expr), "{",
-            s("a", parse_stmt, "*"),
-        "}", "else", s("b", (tks) => [parse_if(tks)!])
+        "if", ["cond", parse_expr], "{",
+            ["a", parse_stmt, "*"],
+        "}", "else", ["b", (tks) => [parse_if(tks)!]]
     ], tks, "IF_NODE") ?? p<IfNode>([
-        "if", s("cond", parse_expr), "{",
-            s("a", parse_stmt, "*"),
+        "if", ["cond", parse_expr], "{",
+            ["a", parse_stmt, "*"],
         "}"
     ], tks, (n) => ({
         kind: "IF_NODE",
@@ -220,8 +220,8 @@ function parse_if(tks: TokenStream): StatmentNode | undefined {
 
 function parse_while(tks: TokenStream): StatmentNode | undefined {
     return p([
-        "while", s("cond", parse_expr), "{",
-            s("body", parse_stmt, "*"),
+        "while", ["cond", parse_expr], "{",
+            ["body", parse_stmt, "*"],
         "}"
     ], tks, "WHILE_NODE")
 }
@@ -234,7 +234,7 @@ function parse_expr(tks: TokenStream): ExprNode | undefined  {
 
 function parse_ternary(tks: TokenStream): ExprNode | undefined  {
     return p<ExprNode>([
-        s("a", parse_eq), "if", s("cond", parse_expr), "else", s("b", parse_expr)
+        ["a", parse_eq], "if", ["cond", parse_expr], "else", ["b", parse_expr]
     ], tks, "TERNARY_NODE") ?? parse_eq(tks)
 }
 
@@ -256,17 +256,17 @@ function parse_ex(tks: TokenStream): ExprNode | undefined  {
 
 function parse_index(tks: TokenStream): ExprNode | undefined {
     return p<ExprNode>([
-        s("value", parse_call), "[", s("index", parse_expr), "]",
+        ["value", parse_call], "[",["index", parse_expr], "]",
     ], tks, "INDEX_NODE") ??
     p<ExprNode>([
-        s("value", parse_call), ".", s("field", "<ident>"),
+        ["value", parse_call], ".", ["field", "<ident>"],
     ], tks, "FIELD_NODE") ??
     parse_call(tks)
 }
 
 function parse_call(tks: TokenStream): ExprNode | undefined {
     return p<ExprNode>([
-        s("func", parse_value), "(", s("args", parse_expr, ","), ")",
+        ["func", parse_value], "(", ["args", parse_expr, ","], ")",
     ], tks, "CALL_NODE") ??
     parse_value(tks)
 }
@@ -286,30 +286,24 @@ function parse_arg_name(tks: TokenStream): string | undefined {
 function parse_value(tks: TokenStream): ExprNode | undefined {
     return p<ObjectNode>([
         "{",
-            s("items", (tks) => p<ArgNode>([
-                s("name", parse_arg_name),
-                s("value", parse_expr)
-            ], tks, "ARG_NODE"), ","),
+            ["items", (tks) => p<ArgNode>([
+                ["name", parse_arg_name],
+                ["value", parse_expr]
+            ], tks, "ARG_NODE"), ","],
         "}"
     ], tks, "OBJECT_NODE") ??
     p<ArrayNode>([
         "[",
-            s("items", parse_expr, ","),
+            ["items", parse_expr, ","],
         "]"
     ], tks, "ARRAY_NODE") ??
-    p<NumberNode>([s("value", "<number>")], tks, (node) => ({
+    p<NumberNode>([["value", "<number>"]], tks, (node) => ({
         kind: "NUMBER_NODE",
         value: Number(node.value)
     })) ??
-    p<StringNode>([s("value", "<string>")], tks, (node) => ({
-        kind: "STRING_NODE",
-        value: node.value
-    })) ??
-    p<IdentNode>([s("value", "<ident>")], tks, (node) => ({
-        kind: "IDENT_NODE",
-        value: node.value
-    })) ??
-    p<ExprNode>(["(", s("expr", parse_expr), ")"], tks, (n) => n.expr)
+    p<StringNode>([["value", "<string>"]], tks, "STRING_NODE") ??
+    p<IdentNode>([["value", "<ident>"]], tks, "IDENT_NODE") ??
+    p<ExprNode>(["(", ["expr", parse_expr], ")"], tks, (n) => n.expr)
 }
 
 // UTIL //

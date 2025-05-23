@@ -2,7 +2,9 @@
 
 import { TokenStream } from "../lang/lexer.ts";
 
-type FullStep = { name: string, step: string | ((tks: TokenStream) => any), mod: string }
+type FullStep
+    = [string, string | ((tks: TokenStream) => any)]
+    | [string, string | ((tks: TokenStream) => any), string]
 
 type Step
     = string
@@ -11,12 +13,8 @@ type Step
 
 type Rule = Step[]
 
-export function s(name: string, step: string | ((tks: TokenStream) => any), mod: string=""): Step {
-    return {name, step, mod }
-}
-
 function $apply(tks: TokenStream, step: FullStep) {
-    return typeof step.step === "string" ? tks.take(step.step) : step.step(tks)
+    return typeof step[1] === "string" ? tks.take(step[1]) : step[1](tks)
 }
 
 export function p<T>(rule: Rule, tks: TokenStream, build: string | ((node: any) => T)): T | undefined {
@@ -29,22 +27,22 @@ export function p<T>(rule: Rule, tks: TokenStream, build: string | ((node: any) 
                 tks.load(save)
                 return undefined
             }
-        } else if (step.mod == ",") {
-            node[step.name] = []
+        } else if (step[2] == ",") {
+            node[step[0]] = []
 
             while (true) {
                 const v = $apply(tks, step)
                 if (!v) break
                 tks.take(",")
-                node[step.name].push(v)
+                node[step[0]].push(v)
             }
-        } else if (step.mod == "*") {
-            node[step.name] = []
+        } else if (step[2] == "*") {
+            node[step[0]] = []
 
             while (true) {
                 const v = $apply(tks, step)
                 if (!v) break
-                node[step.name].push(v)
+                node[step[0]].push(v)
             }
         } else {
             const v = $apply(tks, step)
@@ -54,7 +52,7 @@ export function p<T>(rule: Rule, tks: TokenStream, build: string | ((node: any) 
                 return undefined
             }
 
-            node[step.name] = v
+            node[step[0]] = v
         }
     }
 
