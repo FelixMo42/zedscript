@@ -1,9 +1,9 @@
-import { FuncSSA, Module, StatmentSSA } from "../lang/lower.ts";
+import { FuncSSA, Module, StatmentSSA } from "../backends/vm/lower.ts";
 import { ArgNode, ExprNode, FileNode, FuncNode, ParamNode, StatmentNode, TypeNode, StructNode } from "../lang/parse.ts";
-import { Op, Prog, Fn } from "../lang/build.ts"
+import { Op, Prog, Fn } from "../backends/vm/build.ts"
 
-type Formatable
-    = string
+type Formatable =
+    | string
     | number
     | undefined
     | TypeNode
