@@ -1,4 +1,4 @@
-import { p } from "../parser/dsl.ts";
+import { p, p_main } from "../parser/dsl.ts";
 import { lexer, type TokenStream } from "./lexer.ts";
 
 export type FileNode = {
@@ -187,36 +187,24 @@ export function parse_value(tks: TokenStream): ExprNode | undefined {
 
 // TOP LEVEL //
 
-function parse_type(tks: TokenStream): TypeNode | undefined {
-    return p<TypeNode>`
-        type_node = name:ident "<" args:${parse_type}, ">"
-        type_node = name:ident
-    `(tks, (node) => ({ args: [], ...node }))
-}
+const parse_file = p_main<FileNode>`
+    file_node = items:top_level_decl_node*
 
-const parse_param_node = p<ParamNode>`
-    param_node = name:ident type:${parse_type}
-`
+    top_level_decl_node = :func_node
+    top_level_decl_node = :struct_node
 
-const parse_struct = p<StructNode>`
     struct_node = "struct" name:ident "{"
-        fields:${parse_param_node}*
+        fields:param_node*
     "}"
-`
 
-const parse_func = p<FuncNode>`
-    func_node = "fn" name:ident "(" params:${parse_param_node}, ")" return_type:${parse_type} "{"
+    func_node = "fn" name:ident "(" params:param_node, ")" return_type:type_node "{"
         body:${parse_stmt}*
     "}"
-`
 
-const parse_file_item = p<FileNode>`
-    todo_fix_me = :${parse_func}
-    todo_fix_me = :${parse_struct}
-`
+    param_node = name:ident type:type_node
 
-const parse_file = p<FileNode>`
-    file_node = items:${parse_file_item}*
+    type_node = name:ident "<" args:type_node, ">"
+    type_node = name:ident
 `
 
 export function parse(src: string) {

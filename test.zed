@@ -1,3 +1,15 @@
+struct Vec2 {
+    x int
+    y int
+}
+
+fn mag(p Vec2) int {
+    return sqrt(p.x ** 2 + p.y ** 2)
+}
+
 fn main() int {
-    return 5
+    return mag({
+        x: 0
+        y: 42
+    })
 }

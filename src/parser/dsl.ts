@@ -7,16 +7,12 @@ import { TokenStream } from "../lang/lexer.ts";
 type Parser = (tks: TokenStream) => any
 
 type FullStep = [string, string | Parser, string]
+type Step = string | FullStep
 
-type Step
-    = string
-    | FullStep
-
-type Rule = Step[] & {
-    name: string
-}
+type Rule = Step[] & { name: string }
 
 const PARSERS = new Map<string, Parser>()
+const RULES   = [] as Rule[]
 
 // build //
 
@@ -32,6 +28,15 @@ function $build_parse_rule_string(rule: TemplateStringsArray, parsers: Parser[])
 
         return merged
     }, "")
+}
+
+function $parse_rule_step(step: string) {
+    if (PARSERS.has(step)) return PARSERS.get(step)
+    if (["ident", "number", "string"].includes(step)) return `<${step}>`
+    PARSERS.set(step, function self(tks: TokenStream) {
+        return $apply_rules(RULES.filter(rule => rule.name === step), tks, self)
+    })
+    return PARSERS.get(step)
 }
 
 function $parse_rule_token(token: string): Step {
@@ -51,8 +56,7 @@ function $parse_rule_token(token: string): Step {
 
         // parse out the name and the rule type
         const [name, value] = token.split(":")
-        const rule = PARSERS.get(value) ?? `<${value}>`
-        return [name, rule, pattern] as FullStep
+        return [name, $parse_rule_step(value), pattern] as FullStep
     }
 
     // TODO: handle this case more gracefully
@@ -73,6 +77,7 @@ function $parse_rule(rule: TemplateStringsArray, parsers: Parser[]): Rule[] {
         if (tokens[i+1] == "=") {
             // start new rule
             current_rule = Object.assign([], { name: tokens[i] })
+            RULES.push(current_rule)
             rules.push(current_rule)
 
             // skip the "=" token
@@ -127,6 +132,44 @@ function $apply_rule(rule: Rule, tks: TokenStream) {
     return node
 }
 
+function $apply_rules<T>(rules: Rule[], tks: TokenStream, build: string | Parser): T | undefined {
+    if ($is_rule_set_recursive(rules, build as Parser)) {
+        let node: T | undefined = undefined
+
+        for (const rule of rules) {
+            if (!$is_rule_recursive(rule, build as Parser)) {
+                node = $apply_rule(rule, tks)
+                if (node) break
+            }
+        }
+
+        if (!node) return undefined
+
+        rec: while (true) {
+            for (const rule of rules) {
+                if ($is_rule_recursive(rule, build as Parser)) {
+                    const new_node = $apply_recursive_rule<T>(rule, node!, tks) as T | undefined
+                    if (new_node) {
+                        node = new_node
+                        continue rec
+                    }
+                }
+            }
+            if ("" in (node as object)) return (node as any)[""]
+            return node
+        }
+    } else {
+        for (const rule of rules) {
+            const node = $apply_rule(rule, tks)
+            if (node) {
+                if ("" in node) return node[""]
+                if (typeof build === "function" && build.name === "self") return node
+                return typeof build === "function" ? build(node) : node
+            }
+        }
+    }
+}
+
 //
 
 function $is_rule_recursive(rule: Rule, self: Parser) {
@@ -139,43 +182,12 @@ function $is_rule_set_recursive(ruleset: Rule[], self: Parser) {
 
 //
 
+export function p_main<T>(template: TemplateStringsArray, ...values: Parser[]): (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
+    $parse_rule(template, values)
+    return (tks, build="") => $apply_rules(RULES.filter(rule => rule.name === "file_node"), tks, build)
+}
+
 export function p<T>(template: TemplateStringsArray, ...values: Parser[]): (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
     const rules = $parse_rule(template, values)
-
-    return (tks, build="") => {
-        if ($is_rule_set_recursive(rules, build as Parser)) {
-            let node: T | undefined = undefined
-
-            for (const rule of rules) {
-                if (!$is_rule_recursive(rule, build as Parser)) {
-                    node = $apply_rule(rule, tks)
-                    if (node) break
-                }
-            }
-
-            if (!node) return undefined
-
-            rec: while (true) {
-                for (const rule of rules) {
-                    if ($is_rule_recursive(rule, build as Parser)) {
-                        const new_node = $apply_recursive_rule<T>(rule, node!, tks) as T | undefined
-                        if (new_node) {
-                            node = new_node
-                            continue rec
-                        }
-                    }
-                }
-                if ("" in (node as object)) return (node as any)[""]
-                return node
-            }
-        } else {
-            for (const rule of rules) {
-                const node = $apply_rule(rule, tks)
-                if (node) {
-                    if ("" in node) return node[""]
-                    return typeof build === "function" ? build(node) : node
-                }
-            }
-        }
-    }
+    return (tks, build="") => $apply_rules(rules, tks, build)
 }
