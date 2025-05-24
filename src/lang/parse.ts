@@ -199,31 +199,20 @@ export function parse_expr(tks: TokenStream): ExprNode | undefined  {
 
 function parse_ternary(tks: TokenStream): ExprNode | undefined  {
     return p<ExprNode>`
-        ternary_node = a:${parse_eq} "if" cond:parse_expr "else" b:parse_expr
-    `(tks) ?? parse_eq(tks)
+        ternary_node = a:${parse_ops} "if" cond:parse_expr "else" b:parse_expr
+    `(tks) ?? parse_ops(tks)
 }
 
-function parse_eq(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_add, parse_eq, ["==", ">", "<", ">=", "<="])
-}
+const parse_ops = parse_op_util(parse_value, [
+    ["==", ">", "<", ">=", "<="],
+    ["+", "-"],
+    ["*", "/"],
+    ["**"]
+])
 
-function parse_add(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_mul, parse_add, ["+", "-"])
-}
-
-function parse_mul(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_ex, parse_mul, ["*", "/"])
-}
-
-function parse_ex(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_value, parse_ex, ["**"])
-}
-
-function parse_arg(tks: TokenStream): ArgNode | undefined {
-    return p<ArgNode>`
-        arg_node = name:ident ":" value:parse_expr
-    `(tks)
-}
+const parse_arg = p<ArgNode>`
+    arg_node = name:ident ":" value:${parse_expr}
+`
 
 export function parse_value(tks: TokenStream): ExprNode | undefined {
     return p<ExprNode>`
@@ -244,24 +233,28 @@ export function parse_value(tks: TokenStream): ExprNode | undefined {
 
 // UTIL //
 
-function parse_op(tks: TokenStream, sub: (tks: TokenStream) => ExprNode | undefined, eqv: (tks: TokenStream) => ExprNode | undefined, ops: Op[]): ExprNode | undefined {
-    const a = sub(tks)
-    if (!a) return undefined
-    const save = tks.save()
+function parse_op_util(sub: (tks: TokenStream) => ExprNode | undefined, ops: Op[][]): (tks: TokenStream) => ExprNode | undefined {
+    const s = ops.length > 1 ? parse_op_util(sub, ops.slice(1)) : sub
 
-    for (const op of ops) {
-        if (tks.take(op)) {
-            return {
-                kind: "OP_NODE",
-                op,
-                a,
-                b: eqv(tks)!
+    return function self(tks: TokenStream): ExprNode | undefined {
+        const a = s(tks)
+        if (!a) return undefined
+        const save = tks.save()
+
+        for (const op of ops[0]) {
+            if (tks.take(op)) {
+                return {
+                    kind: "OP_NODE",
+                    op,
+                    a,
+                    b: self(tks)!
+                }
             }
         }
-    }
 
-    tks.load(save)
-    return a
+        tks.load(save)
+        return a
+    }
 }
 
 export function parse(tks: TokenStream) {
