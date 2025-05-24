@@ -1,4 +1,4 @@
-import { p, p_main } from "../parser/dsl.ts";
+import { p, p2 } from "../parser/dsl.ts";
 import { lexer, type TokenStream } from "./lexer.ts";
 
 export type FileNode = {
@@ -152,12 +152,6 @@ export function parse_expr(tks: TokenStream): ExprNode | undefined  {
     return parse_ternary(tks)
 }
 
-function parse_ternary(tks: TokenStream): ExprNode | undefined  {
-    return p<ExprNode>`
-        ternary_node = a:${parse_ops} "if" cond:parse_expr "else" b:parse_expr
-    `(tks) ?? parse_ops(tks)
-}
-
 const parse_ops = parse_op_util(parse_value, [
     ["==", ">", "<", ">=", "<="],
     ["+", "-"],
@@ -165,7 +159,12 @@ const parse_ops = parse_op_util(parse_value, [
     ["**"]
 ])
 
-const parse_arg = p<ArgNode>`
+const parse_ternary = p2<ExprNode>("ternary_node")`
+    ternary_node = a:${parse_ops} "if" cond:${parse_expr} "else" b:${parse_expr}
+    ternary_node = :${parse_ops}
+`
+
+const parse_arg = p2<ArgNode>("arg_node")`
     arg_node = name:ident ":" value:${parse_expr}
 `
 
@@ -187,7 +186,7 @@ export function parse_value(tks: TokenStream): ExprNode | undefined {
 
 // TOP LEVEL //
 
-const parse_file = p_main<FileNode>`
+const parse_file = p2<FileNode>("file_node")`
     file_node = items:top_level_decl_node*
 
     top_level_decl_node = :func_node
