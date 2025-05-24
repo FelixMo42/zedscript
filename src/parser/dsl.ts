@@ -182,24 +182,6 @@ function $is_rule_set_recursive(ruleset: Rule[], self: Parser) {
 
 //
 
-const cache = new Map<string, any>()
-
-export function p2<T>(target: string): (template: TemplateStringsArray, ...values: Parser[]) => (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
-    return (template, ...values) => {
-        if (cache.has(target)) return cache.get(target)
-
-        $parse_rule(template, values)
-
-        cache.set(target, (tks: TokenStream, build="") => $apply_rules(
-            RULES.filter(rule => rule.name === target),
-            tks,
-            build
-        ))
-
-        return cache.get(target)
-    }
-}
-
 export function p<T>(template: TemplateStringsArray, ...values: Parser[]): (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
     const rules = $parse_rule(template, values)
     return (tks, build="") => $apply_rules(rules, tks, build)

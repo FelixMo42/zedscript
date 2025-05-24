@@ -1,4 +1,5 @@
-import { p, p2 } from "../parser/dsl.ts";
+import { p3 } from "../parser/exp.ts";
+import { p } from "../parser/dsl.ts";
 import { lexer, type TokenStream } from "./lexer.ts";
 
 export type FileNode = {
@@ -134,7 +135,7 @@ export interface TypeNode {
 
 function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     return p<StatmentNode>`
-        while_node      = "while" cond:${parse_expr} "{" body:parse_stmt* "}"
+        while_node      = "while" cond:${parse_expr} "{" body:${parse_stmt}* "}"
         return_node     = "return" value:parse_expr
 
         if_node = "if" cond:${parse_expr} "{" a:parse_stmt* "}" "else" "{" b:parse_stmt* "}"
@@ -152,19 +153,21 @@ export function parse_expr(tks: TokenStream): ExprNode | undefined  {
     return parse_ternary(tks)
 }
 
-const parse_ops = parse_op_util(parse_value, [
-    ["==", ">", "<", ">=", "<="],
-    ["+", "-"],
-    ["*", "/"],
-    ["**"]
-])
+function parse_ops(tks: TokenStream) {
+    return parse_op_util(parse_value, [
+        ["==", ">", "<", ">=", "<="],
+        ["+", "-"],
+        ["*", "/"],
+        ["**"]
+    ])(tks)
+}
 
-const parse_ternary = p2<ExprNode>("ternary_node")`
+const parse_ternary = p3<ExprNode>("ternary_node")`
     ternary_node = a:${parse_ops} "if" cond:${parse_expr} "else" b:${parse_expr}
     ternary_node = :${parse_ops}
 `
 
-const parse_arg = p2<ArgNode>("arg_node")`
+const parse_arg = p3<ArgNode>("arg_node")`
     arg_node = name:ident ":" value:${parse_expr}
 `
 
@@ -186,19 +189,21 @@ export function parse_value(tks: TokenStream): ExprNode | undefined {
 
 // TOP LEVEL //
 
-const parse_file = p2<FileNode>("file_node")`
+const parse_file = p3<FileNode>("file_node")`
     file_node = items:top_level_decl_node*
 
     top_level_decl_node = :func_node
     top_level_decl_node = :struct_node
 
-    struct_node = "struct" name:ident "{"
-        fields:param_node*
-    "}"
+    struct_node =
+        "struct" name:ident "{"
+            fields:param_node*
+        "}"
 
-    func_node = "fn" name:ident "(" params:param_node, ")" return_type:type_node "{"
-        body:${parse_stmt}*
-    "}"
+    func_node =
+        "fn" name:ident "(" params:param_node, ")" return_type:type_node "{"
+            body:${parse_stmt}*
+        "}"
 
     param_node = name:ident type:type_node
 
