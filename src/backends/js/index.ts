@@ -31,7 +31,7 @@ function buildStatment(s: StatmentNode): Expr {
 
 function buildExpr(s: ExprNode): Expr {
     if (s.kind === "NUMBER_NODE") {
-        return s.value
+        return Number(s.value)
     } else if (s.kind === "OP_NODE") {
         return [`@${s.op}`, buildExpr(s.a), buildExpr(s.b)]
     } else if (s.kind === "IDENT_NODE") {
@@ -52,7 +52,7 @@ function buildExpr(s: ExprNode): Expr {
         return ["@ternary", buildExpr(s.cond), buildExpr(s.a), buildExpr(s.b)]
     }
 
-    throw new Error("EXPR_STATMENT?!?")
+    throw new Error("EXPR_STATMENT?!?: " + JSON.stringify(s, null, 2))
 }
 
 export function stdlib() {
@@ -65,8 +65,12 @@ export function stdlib() {
 export function exec(src: string, ...params: (string | number)[]) {
     const lisp = build(parse(lexer(src)))
     const code = stdlib() + lisp.map(toJS).join("\n")
-    const main = eval(code + "main")
-    return main(...params)
+    try {
+        const main = eval(code + "main")
+        return main(...params)
+    } catch (_) {
+        console.log(lisp, code)
+    }
 }
 
 function getListOfLocals(expr: Expr, locals: string[]=[]): string[] {

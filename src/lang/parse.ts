@@ -132,102 +132,75 @@ export interface TypeNode {
 
 // TOP LEVEL //
 
-export function parse_file(tks: TokenStream): FileNode {
-    return p<FileNode>`items:${(t) => parse_func(t) ?? parse_struct(t)}*`(tks, "FILE_NODE")!
+const parse_file = p<FileNode>`
+    file_node = items:${(t) => parse_func(t) ?? parse_struct(t)}*
+`
+
+const parse_param_node = p<ParamNode>`
+    param_node = name:ident type:${parse_type}
+`
+
+const parse_struct = p<StructNode>`
+    struct_node = "struct" name:ident "{"
+        fields:${parse_param_node}*
+    "}"
+`
+
+function parse_type(tks: TokenStream): TypeNode | undefined {
+    return p<TypeNode>`
+        type_node = name:ident "<" args:${parse_type}, ">"
+        type_node = name:ident
+    `(tks, (node) => ({ args: [], ...node }))
 }
 
-function parse_param_node(tks: TokenStream): ParamNode | undefined {
-    return p<ParamNode>`name:ident type:${parse_type}`(tks, "PARAM_NODE")
-}
-
-export function parse_struct(tks: TokenStream): StructNode | undefined {
-    return p<StructNode>`
-        "struct" name:ident "{"
-            fields:${parse_param_node}*
-        "}"
-    `(tks, "STRUCT_NODE")
-}
-
-export function parse_type(tks: TokenStream): TypeNode | undefined {
-    return (
-        p<TypeNode>`"(" args:${parse_type} ")"`(tks, (v) => ({
-            kind: "TYPE_NODE",
-            name: "Tuple",
-            args: v.args,
-        })) ??
-        p<TypeNode>`name:ident "<" args:${parse_type}, ">"`(tks, (v) => ({
-            kind: "TYPE_NODE",
-            name: v.name,
-            args: v.args,
-        })) ??
-        p<TypeNode>`name:ident`(tks, (v) => ({
-            kind: "TYPE_NODE",
-            name: v.name,
-            args: [],
-        }))
-    )
-}
-
-export function parse_func(tks: TokenStream): FuncNode | undefined {
-    return p<FuncNode>`
-        "fn" name:ident "(" params:${parse_param_node}, ")" return_type:${parse_type} "{"
-            body:${parse_stmt}*
-        "}"
-    `(tks, "FUNC_NODE")
-}
+const parse_func = p<FuncNode>`
+    func_node = "fn" name:ident "(" params:${parse_param_node}, ")" return_type:${parse_type} "{"
+        body:${parse_stmt}*
+    "}"
+`
 
 // STATMENTS //
 
 function parse_stmt(tks: TokenStream): StatmentNode | undefined {
     return (
         parse_if(tks) ??
-        parse_while(tks) ??
-        p<ReturnNode>`"return" value:${parse_expr}`(tks, "RETURN_NODE") ??
-        p<AssignmentNode>`name:parse_expr "=" value:parse_expr`(tks, "ASSIGNMENT_NODE") ??
-        p<DiscardNode>`name:parse_expr`(tks, "DISCARD_NODE")
+        p<StatmentNode>`
+            while_node      = "while" cond:${parse_expr} "{" body:parse_stmt* "}"
+            return_node     = "return" value:parse_expr
+            assignment_node = name:parse_expr "=" value:parse_expr
+            discard_node    = name:parse_expr
+        `(tks)
     )
 }
 
 function parse_if(tks: TokenStream): StatmentNode | undefined {
     return p<IfNode>`
-        "if" cond:parse_expr "{"
+        if_node = "if" cond:${parse_expr} "{"
             a:parse_stmt*
         "}" "else" "{"
             b:parse_stmt*
         "}"
-    `(tks, "IF_NODE") ?? p<IfNode>`
-        "if" cond:parse_expr "{"
+
+        if_node = "if" cond:parse_expr "{"
             a:parse_stmt*
         "}" "else" b:${(tks) => [parse_if(tks)!]}
-    `(tks, "IF_NODE") ?? p<IfNode>`
-        "if" cond:parse_expr "{"
+    
+        if_node = "if" cond:parse_expr "{"
             a:parse_stmt*
         "}"
-    `(tks, (n) => ({
-        kind: "IF_NODE",
-        b: [],
-        ...n
-    }))
-}
-
-function parse_while(tks: TokenStream): StatmentNode | undefined {
-    return p<StatmentNode>`
-        "while" cond:parse_expr "{"
-            body:parse_stmt*
-        "}"
-    `(tks, "WHILE_NODE")
+    `(tks, (n) => ({ b: [], ...n }))
 }
 
 // INDEX_NODEESSIONS //
 
-function parse_expr(tks: TokenStream): ExprNode | undefined  {
+export function parse_expr(tks: TokenStream): ExprNode | undefined  {
     return parse_ternary(tks)
 }
 
 function parse_ternary(tks: TokenStream): ExprNode | undefined  {
     return p<ExprNode>`
-        a:${parse_eq} "if" cond:parse_expr "else" b:parse_expr
-    `(tks, "TERNARY_NODE") ?? parse_eq(tks)
+        ternary_node = a:${parse_eq} "if" cond:parse_expr "else" b:parse_expr
+    `(tks) ?? parse_eq(tks)
 }
 
 function parse_eq(tks: TokenStream): ExprNode | undefined  {
@@ -243,49 +216,30 @@ function parse_mul(tks: TokenStream): ExprNode | undefined  {
 }
 
 function parse_ex(tks: TokenStream): ExprNode | undefined  {
-    return parse_op(tks, parse_index, parse_ex, ["**"])
+    return parse_op(tks, parse_value, parse_ex, ["**"])
 }
 
-function parse_index(tks: TokenStream): ExprNode | undefined {
-    return p<ExprNode>`value:${parse_call} "[" index:parse_expr "]"`(tks, "INDEX_NODE") ??
-    p<ExprNode>`value:${parse_call} "." field:ident`(tks, "FIELD_NODE") ??
-    parse_call(tks)
+function parse_arg(tks: TokenStream): ArgNode | undefined {
+    return p<ArgNode>`
+        arg_node = name:ident ":" value:parse_expr
+    `(tks)
 }
 
-function parse_call(tks: TokenStream): ExprNode | undefined {
-    return p<ExprNode>`func:${parse_value} "(" args:parse_expr, ")"`(tks, "CALL_NODE") ??
-    parse_value(tks)
-}
+export function parse_value(tks: TokenStream): ExprNode | undefined {
+    return p<ExprNode>`
+        index_node  = value:${parse_value} "[" index:parse_expr "]"
+        field_node  = value:${parse_value} "." field:ident
+        call_node   = func:${parse_value} "(" args:parse_expr, ")"
 
-function parse_arg_name(tks: TokenStream): string | undefined {
-    const save = tks.save()
+        object_node = "{" items:${parse_arg}, "}"
+        array_node  = "[" items:parse_expr, "]"
 
-    const name = tks.take("<ident>")
-    if (name && tks.take(":")) {
-        return name
-    }
-
-    tks.load(save)
-    return undefined
-}
-
-function parse_value(tks: TokenStream): ExprNode | undefined {
-    return p<ObjectNode>`
-        "{"
-            items:${(tks) => p<ArgNode>`
-                name:${parse_arg_name}
-                value:parse_expr
-            `(tks, "ARG_NODE")},
-        "}"
-    `(tks, "OBJECT_NODE") ??
-    p<ArrayNode>`"[" items:parse_expr, "]"`(tks, "ARRAY_NODE") ??
-    p<ExprNode>`"(" expr:${parse_expr} ")"`(tks, (n) => n.expr) ??
-    p<IdentNode>`value:ident`(tks, "IDENT_NODE") ??
-    p<StringNode>`value:string`(tks, "STRING_NODE") ??
-    p<NumberNode>`value:number`(tks, (node) => ({
-        kind: "NUMBER_NODE",
-        value: Number(node.value)
-    }))
+        ident_node  = value:ident
+        number_node = value:number
+    `(tks, parse_value) ??
+    p<ExprNode>`
+        todo_fix_me = "(" expr:${parse_expr} ")"
+    `(tks, (n) => n.expr)
 }
 
 // UTIL //
@@ -311,5 +265,5 @@ function parse_op(tks: TokenStream, sub: (tks: TokenStream) => ExprNode | undefi
 }
 
 export function parse(tks: TokenStream) {
-    return parse_file(tks)
+    return parse_file(tks)!
 }
