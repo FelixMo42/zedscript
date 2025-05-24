@@ -1,67 +1,12 @@
 import { p3 } from "../parser/exp.ts";
 import { p } from "../parser/dsl.ts";
 import { lexer, type TokenStream } from "./lexer.ts";
-
-export type FileNode = {
-    kind: "FILE_NODE",
-    items: (FuncNode | StructNode)[]
-}
-
-export interface ParamNode {
-    kind: "PARAM_NODE",
-    name: string,
-    type: TypeNode,
-}
+import { FileNode } from "../../out/types.ts";
 
 export interface ArgNode {
     kind: "ARG_NODE",
     name?: string,
     value: ExprNode,
-}
-
-export interface FuncNode {
-    kind: "FUNC_NODE"
-    name: string
-    return_type?: TypeNode
-    body: StatmentNode[]
-    params: ParamNode[]
-}
-
-export interface StructNode {
-    kind: "STRUCT_NODE"
-    name: string
-    fields: ParamNode[]
-}
-
-export type StatmentNode = ReturnNode | AssignmentNode | DiscardNode | IfNode | WhileNode
-
-export interface IfNode {
-    kind: "IF_NODE"
-    cond: ExprNode,
-    a: StatmentNode[]
-    b: StatmentNode[]
-}
-
-export interface WhileNode {
-    kind: "WHILE_NODE"
-    cond: ExprNode,
-    body: StatmentNode[]
-}
-
-export interface AssignmentNode {
-    kind: "ASSIGNMENT_NODE"
-    name: ExprNode,
-    value: ExprNode
-}
-
-export interface DiscardNode {
-    kind: "DISCARD_NODE"
-    value: ExprNode
-}
-
-export interface ReturnNode {
-    kind: "RETURN_NODE"
-    value: ExprNode
 }
 
 export type ExprNode = ArrayNode | ObjectNode | IndexNode | NumberNode | StringNode | IdentNode | OpNode | TernaryNode | CallNode | FieldNode
@@ -131,23 +76,7 @@ export interface TypeNode {
     args: TypeNode[]
 }
 
-// STATMENTS //
-
-function parse_stmt(tks: TokenStream): StatmentNode | undefined {
-    return p<StatmentNode>`
-        while_node      = "while" cond:${parse_expr} "{" body:${parse_stmt}* "}"
-        return_node     = "return" value:parse_expr
-
-        if_node = "if" cond:${parse_expr} "{" a:parse_stmt* "}" "else" "{" b:parse_stmt* "}"
-        if_node = "if" cond:parse_expr "{" a:parse_stmt* "}" "else" b:${(tks) => [parse_stmt(tks)!]}
-        if_node = "if" cond:parse_expr "{" a:parse_stmt* "}"
-
-        assignment_node = name:parse_expr "=" value:parse_expr
-        discard_node    = name:parse_expr
-    `(tks, (n) => ({ b: [], ...n }))
-}
-
-// INDEX_NODEESSIONS //
+// EXPR //
 
 export function parse_expr(tks: TokenStream): ExprNode | undefined  {
     return parse_ternary(tks)
@@ -162,12 +91,12 @@ function parse_ops(tks: TokenStream) {
     ])(tks)
 }
 
-const parse_ternary = p3<ExprNode>("ternary_node")`
+const parse_ternary = p<ExprNode>`
     ternary_node = a:${parse_ops} "if" cond:${parse_expr} "else" b:${parse_expr}
     ternary_node = :${parse_ops}
 `
 
-const parse_arg = p3<ArgNode>("arg_node")`
+const parse_arg = p<ArgNode>`
     arg_node = name:ident ":" value:${parse_expr}
 `
 
@@ -202,13 +131,29 @@ const parse_file = p3<FileNode>("file_node")`
 
     func_node =
         "fn" name:ident "(" params:param_node, ")" return_type:type_node "{"
-            body:${parse_stmt}*
+            body:statment_node*
         "}"
 
     param_node = name:ident type:type_node
 
     type_node = name:ident "<" args:type_node, ">"
     type_node = name:ident
+
+    statment_node = :while_node
+    statment_node = :return_node
+    statment_node = :if_node
+    statment_node = :assignment_node
+    statment_node = :discard_node
+
+    while_node      = "while" cond:${parse_expr} "{" body:statment_node* "}"
+    return_node     = "return" value:parse_expr
+
+    if_node = "if" cond:${parse_expr} "{" a:statment_node* "}" "else" "{" b:statment_node* "}"
+    if_node = "if" cond:parse_expr "{" a:statment_node* "}" "else" b:if_node
+    if_node = "if" cond:parse_expr "{" a:statment_node* "}"
+
+    assignment_node = name:parse_expr "=" value:parse_expr
+    discard_node    = value:parse_expr
 `
 
 export function parse(src: string) {

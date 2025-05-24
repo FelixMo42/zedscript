@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 import { TokenStream } from "../lang/lexer.ts";
+import { writeFileSync } from "node:fs"
 
 // TYPES //
 
@@ -76,47 +77,37 @@ function $parse_rule(rule: TemplateStringsArray, parsers: Parser[]) {
     }
 }
 
-//
+// BUILD //
 
-export function p3<T>(target: string): (template: TemplateStringsArray, ...values: Parser[]) => (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
-    return (template, ...values) => {
-        $parse_rule(template, values)
-        return $build(target)
-    }
-}
-
-function build_cond(cond: string) {
+function $build_cond(cond: string) {
     if (cond.startsWith("\"")) return `tks.take(${cond})`
     if (["ident", "number", "string"].includes(cond)) return `tks.take("<${cond}>")`
     if (cond.includes("parse")) return `PARSERS.get("${cond}")(tks)`
     return `parse_${cond}(tks)`
 }
 
-function build_rule(rule: Rule) {
+function $build_rule(rule: Rule) {
     let src = ""
-
-    const close = []
+    let number_of_closing_brakets = 0
 
     for (const step of rule) {
         if (step.name) {
             if (step.flag === "*" || step.flag === ",") {
                 src += `${step.name} = [];`
                 src += `while (true) {`
-                src += `const _temp = ${build_cond(step.cond)};`
+                src += `const _temp = ${$build_cond(step.cond)};`
                 src += `if (!_temp) break;`
                 if (step.flag === ",") src += "tks.take(\",\");"
                 src += `${step.name}.push(_temp);`
                 src += "}"
             } else {
-                src += `${step.name} = ${build_cond(step.cond)};`
+                src += `${step.name} = ${$build_cond(step.cond)};`
                 src += `if (${step.name}) {`
-                close.push(() => {
-                    src += "}"
-                })
+                number_of_closing_brakets++
             }
         } else {
-            src += `if (${build_cond(step.cond)}) {`
-            close.push(() => src += "}")
+            src += `if (${$build_cond(step.cond)}) {`
+            number_of_closing_brakets++
         }
     }
 
@@ -126,48 +117,136 @@ function build_rule(rule: Rule) {
         src += `return { kind: "${rule.name.toUpperCase()}", ${rule.filter(r => r.name != undefined).map(r => r.name).join(", ")} };`
     }
 
-    for (const c of close) {
-        c()
-    }
-
+    src += "}".repeat(number_of_closing_brakets)
     src += "tks.load(save);"
 
     return src
 }
 
-function build(target: string) {
+const UNNEEDED = new Set<string>()
+
+function $build_ruleset(target: string) {
     let src = ""
-    
-    const rules = RULES.filter(rule => rule.name === target)
 
+    // what rules are gonna be included?
+    const rules = RULES
+        .filter(rule => rule.name === target)
+        .map(rule => {
+            if (rule.length === 1 && rule[0].name === "$out") {
+                const sub_rules = RULES.filter(r => r.name === rule[0].cond)
+                if (sub_rules?.length === 1) {
+                    UNNEEDED.add(rule[0].cond)
+                    return sub_rules[0]
+                }
+            }
+            
+            return rule
+        })
+
+    // get a list of all local variables used in the function
     const locals = new Set<string>()
-
     for (const rule of rules) {
-        for (const step of rule.filter(rule => rule.name)) {
-            locals.add(step.name!)
-        }
+        rule.filter(rule => rule.name)
+            .forEach(rule => locals.add(rule.name!))
     }
 
+    // build the function
     src += `function parse_${target}(tks) {`
     src += `let ${[...locals.values()].join(",")};`
     src += `const save = tks.save();`
-    src += rules.map(build_rule).join("")
+    src += rules.map($build_rule).join("")
     src += `}`
 
     return src
 }
 
 function $build(target: string) {
-    const node_types = new Set<string>()
-
+    const parts = new Map<string, string>()
+    
     for (const rule of RULES) {
-        node_types.add(rule.name)
+        if (!parts.has(rule.name)) parts.set(rule.name, $build_ruleset(rule.name))
+    }
+
+    for (const unneeded of UNNEEDED.values()) {
+        parts.delete(unneeded)
+    }
+
+    const src = parts.values().toArray().join("")
+
+    // console.log(src.length, src)
+    
+    return eval(src + `; parse_${target}`)
+}
+
+//
+
+function cond_to_type(cond: string) {
+    if (cond.startsWith("\"")) return "string"
+    if (["ident", "number", "string"].includes(cond)) return "string"
+    if (cond.includes("parse")) return `any`
+    return snakeToPascal(cond)
+}
+
+function step_to_type(step: Step) {
+    return cond_to_type(step.cond) + (step.flag ? "[]" : "")
+}
+
+function $build_types() {
+    const types = new Map<string, Map<string, string>>()
+    const alias = new Map<string, Set<string>>()
+
+    RULES.forEach(rule => {
+        types.set(rule.name, new Map())
+        alias.set(rule.name, new Set())
+    })
+
+    for (const type of types.keys()) {
+        for (const rule of RULES.filter(rule => rule.name === type)) {
+            for (const step of rule.filter(step => step.name)) {
+                if (step.name === "$out") {
+                    alias.get(type)?.add(step_to_type(step))
+                } else {
+                    types.get(type)?.set(step.name!, step_to_type(step))
+                }
+            }
+        }
     }
 
     let src = ""
-    for (const type of node_types.values()) {
-        src += build(type)
+    for (const [type_name, fields] of types.entries()) {
+        src += `export type ${snakeToPascal(type_name)} =\n`
+        if (fields.size > 0) {
+            src += `    {\n`
+            src += `        kind: "${type_name.toUpperCase()}"\n`
+            for (const [key, val] of fields.entries()) {
+                src += `        ${key}: ${val}\n`
+            }
+            src += "    }\n"
+        }
+        for (const a of alias.get(type_name)!.values()) {
+            src += `    | ${a}\n`
+        }
+        src += "\n"
     }
     
-    return eval(src + `; parse_${target}`)
+    try {
+        writeFileSync("./out/types.ts", src)
+    } catch (_e) {
+        // we're probly in a unit test, this is fine
+    }
+}
+
+export function p3<T>(target: string): (template: TemplateStringsArray, ...values: Parser[]) => (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
+    return (template, ...values) => {
+        $parse_rule(template, values)
+        $build_types()
+        return $build(target)
+    }
+}
+
+function snakeToPascal(snake: string) {
+    return snake
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('');
 }
