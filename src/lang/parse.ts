@@ -1,5 +1,5 @@
 import { p } from "../parser/dsl.ts";
-import type { TokenStream } from "./lexer.ts";
+import { lexer, type TokenStream } from "./lexer.ts";
 
 export type FileNode = {
     kind: "FILE_NODE",
@@ -130,64 +130,19 @@ export interface TypeNode {
     args: TypeNode[]
 }
 
-// TOP LEVEL //
-
-const parse_file = p<FileNode>`
-    file_node = items:${(t) => parse_func(t) ?? parse_struct(t)}*
-`
-
-const parse_param_node = p<ParamNode>`
-    param_node = name:ident type:${parse_type}
-`
-
-const parse_struct = p<StructNode>`
-    struct_node = "struct" name:ident "{"
-        fields:${parse_param_node}*
-    "}"
-`
-
-function parse_type(tks: TokenStream): TypeNode | undefined {
-    return p<TypeNode>`
-        type_node = name:ident "<" args:${parse_type}, ">"
-        type_node = name:ident
-    `(tks, (node) => ({ args: [], ...node }))
-}
-
-const parse_func = p<FuncNode>`
-    func_node = "fn" name:ident "(" params:${parse_param_node}, ")" return_type:${parse_type} "{"
-        body:${parse_stmt}*
-    "}"
-`
-
 // STATMENTS //
 
 function parse_stmt(tks: TokenStream): StatmentNode | undefined {
-    return (
-        parse_if(tks) ??
-        p<StatmentNode>`
-            while_node      = "while" cond:${parse_expr} "{" body:parse_stmt* "}"
-            return_node     = "return" value:parse_expr
-            assignment_node = name:parse_expr "=" value:parse_expr
-            discard_node    = name:parse_expr
-        `(tks)
-    )
-}
+    return p<StatmentNode>`
+        while_node      = "while" cond:${parse_expr} "{" body:parse_stmt* "}"
+        return_node     = "return" value:parse_expr
 
-function parse_if(tks: TokenStream): StatmentNode | undefined {
-    return p<IfNode>`
-        if_node = "if" cond:${parse_expr} "{"
-            a:parse_stmt*
-        "}" "else" "{"
-            b:parse_stmt*
-        "}"
+        if_node = "if" cond:${parse_expr} "{" a:parse_stmt* "}" "else" "{" b:parse_stmt* "}"
+        if_node = "if" cond:parse_expr "{" a:parse_stmt* "}" "else" b:${(tks) => [parse_stmt(tks)!]}
+        if_node = "if" cond:parse_expr "{" a:parse_stmt* "}"
 
-        if_node = "if" cond:parse_expr "{"
-            a:parse_stmt*
-        "}" "else" b:${(tks) => [parse_if(tks)!]}
-    
-        if_node = "if" cond:parse_expr "{"
-            a:parse_stmt*
-        "}"
+        assignment_node = name:parse_expr "=" value:parse_expr
+        discard_node    = name:parse_expr
     `(tks, (n) => ({ b: [], ...n }))
 }
 
@@ -225,13 +180,48 @@ export function parse_value(tks: TokenStream): ExprNode | undefined {
 
         ident_node  = value:ident
         number_node = value:number
-    `(tks, parse_value) ??
-    p<ExprNode>`
-        todo_fix_me = "(" expr:${parse_expr} ")"
-    `(tks, (n) => n.expr)
+
+        todo_fix_me = "(" :${parse_expr} ")"
+    `(tks, parse_value)
 }
 
-// UTIL //
+// TOP LEVEL //
+
+function parse_type(tks: TokenStream): TypeNode | undefined {
+    return p<TypeNode>`
+        type_node = name:ident "<" args:${parse_type}, ">"
+        type_node = name:ident
+    `(tks, (node) => ({ args: [], ...node }))
+}
+
+const parse_param_node = p<ParamNode>`
+    param_node = name:ident type:${parse_type}
+`
+
+const parse_struct = p<StructNode>`
+    struct_node = "struct" name:ident "{"
+        fields:${parse_param_node}*
+    "}"
+`
+
+const parse_func = p<FuncNode>`
+    func_node = "fn" name:ident "(" params:${parse_param_node}, ")" return_type:${parse_type} "{"
+        body:${parse_stmt}*
+    "}"
+`
+
+const parse_file_item = p<FileNode>`
+    todo_fix_me = :${parse_func}
+    todo_fix_me = :${parse_struct}
+`
+
+const parse_file = p<FileNode>`
+    file_node = items:${parse_file_item}*
+`
+
+export function parse(src: string) {
+    return parse_file(lexer(src))!
+}
 
 function parse_op_util(sub: (tks: TokenStream) => ExprNode | undefined, ops: Op[][]): (tks: TokenStream) => ExprNode | undefined {
     const s = ops.length > 1 ? parse_op_util(sub, ops.slice(1)) : sub
@@ -243,20 +233,12 @@ function parse_op_util(sub: (tks: TokenStream) => ExprNode | undefined, ops: Op[
 
         for (const op of ops[0]) {
             if (tks.take(op)) {
-                return {
-                    kind: "OP_NODE",
-                    op,
-                    a,
-                    b: self(tks)!
-                }
+                const b = self(tks)!
+                return { kind: "OP_NODE", op, a, b }
             }
         }
 
         tks.load(save)
         return a
     }
-}
-
-export function parse(tks: TokenStream) {
-    return parse_file(tks)!
 }

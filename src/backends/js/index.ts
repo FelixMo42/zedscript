@@ -1,5 +1,4 @@
 import { ExprNode, FileNode, parse, StatmentNode } from "../../lang/parse.ts";
-import { lexer } from "../../lang/lexer.ts";
 
 type Expr = Expr[] | string | number
 
@@ -63,7 +62,7 @@ export function stdlib() {
 }
 
 export function exec(src: string, ...params: (string | number)[]) {
-    const lisp = build(parse(lexer(src)))
+    const lisp = build(parse(src))
     const code = stdlib() + lisp.map(toJS).join("\n")
     try {
         const main = eval(code + "main")

@@ -41,7 +41,7 @@ function $parse_rule_token(token: string): Step {
     }
 
     // handle named steps
-    if (token.match(/^[a-z_]+\:/g)) {
+    if (token.match(/^[a-z_]*\:/g)) {
         // pull out ending modifiers
         let pattern = ""
         if (token.endsWith("*") || token.endsWith(",")) {
@@ -165,12 +165,16 @@ export function p<T>(template: TemplateStringsArray, ...values: Parser[]): (tks:
                         }
                     }
                 }
+                if ("" in (node as object)) return (node as any)[""]
                 return node
             }
         } else {
             for (const rule of rules) {
                 const node = $apply_rule(rule, tks)
-                if (node) return typeof build === "function" ? build(node) : node
+                if (node) {
+                    if ("" in node) return node[""]
+                    return typeof build === "function" ? build(node) : node
+                }
             }
         }
     }
