@@ -90,6 +90,7 @@ function $build_rule(rule: Rule) {
     let src = ""
     let number_of_closing_brakets = 0
 
+    // rule matching steps
     for (const step of rule) {
         if (step.name) {
             if (step.flag === "*" || step.flag === ",") {
@@ -116,8 +117,9 @@ function $build_rule(rule: Rule) {
         }
     }
 
+    // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
-        src += `return $out;`
+        src += `_node = $out; break;`
     } else {
         const defined_fields = rule.filter(r => r.name != undefined).map(r => r.name) as string[]
 
@@ -130,14 +132,76 @@ function $build_rule(rule: Rule) {
 
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
-        src += `return { kind: "${rule.name.toUpperCase()}", ${fields} };`
+        src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; break;`
     }
 
+    // add closing brackets
     src += "}".repeat(number_of_closing_brakets)
-    src += "tks.load(save);"
+    src += "tks.load(_save);"
 
     return src
 }
+
+function $build_recursive_rule(rule: Rule) {
+    let src = ""
+    let number_of_closing_brakets = 0
+
+    // rule matching steps
+    for (const step of rule.slice(1)) {
+        if (step.name) {
+            if (step.flag === "*" || step.flag === ",") {
+                src += `${step.name} = [];`
+                src += `while (true) {`
+                src += `const _temp = ${$build_cond(step.cond)};`
+                src += `if (!_temp) break;`
+                if (step.flag === ",") src += "tks.take(\",\");"
+                src += `${step.name}.push(_temp);`
+                src += "}"
+            } else if (types.get(rule.name)?.get(step.name)?.includes("[]")) {
+                src += `${step.name} = ${$build_cond(step.cond)};`
+                src += `if (${step.name}) {`
+                src += `${step.name} = [${step.name}];`
+                number_of_closing_brakets++
+            } else {
+                src += `${step.name} = ${$build_cond(step.cond)};`
+                src += `if (${step.name}) {`
+                number_of_closing_brakets++
+            }
+        } else {
+            src += `if (${$build_cond(step.cond)}) {`
+            number_of_closing_brakets++
+        }
+    }
+
+    // what should this rule return?
+    if (rule.find(r => r.name === "$out")) {
+        src += `_node = $out; continue;`
+    } else {
+        const defined_fields = rule
+            .filter(r => r.name != undefined)
+            .map(r => r.name) as string[]
+
+        defined_fields[0] = `${rule[0].name}:_node`
+
+        const undefined_fields = types
+            .get(rule.name)!
+            .keys()
+            .filter((field) => !defined_fields.includes(field))
+            .filter((field) => types.get(rule.name)!.get(field)?.includes("[]"))
+            .map((field) => `${field}: []`)
+
+        const fields = [...defined_fields, ...undefined_fields].join(",")
+
+        src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; continue;`
+    }
+
+    // add closing brackets
+    src += "}".repeat(number_of_closing_brakets)
+    src += "tks.load(_save);"
+
+    return src
+}
+
 
 const UNNEEDED = new Set<string>()
 
@@ -155,12 +219,13 @@ function $build_ruleset(target: string) {
                     return sub_rules[0]
                 }
             }
-            
+ 
             return rule
         })
 
     // get a list of all local variables used in the function
     const locals = new Set<string>()
+    locals.add("_node").add("_save")
     for (const rule of rules) {
         rule.filter(rule => rule.name)
             .forEach(rule => locals.add(rule.name!))
@@ -169,8 +234,18 @@ function $build_ruleset(target: string) {
     // build the function
     src += `function parse_${target}(tks) {`
     src += `let ${[...locals.values()].join(",")};`
-    src += `const save = tks.save();`
-    src += rules.map($build_rule).join("")
+    src += `_save = tks.save();`
+
+    src += "while (true) {"
+    src += rules.filter(rule => rule[0].cond != target).map($build_rule).join("")
+    src += "return}"
+
+    src += "while (true) {"
+    src += `_save = tks.save();`
+    src += rules.filter(rule => rule[0].cond === target).map($build_recursive_rule).join("")
+    src += "break}"
+    src += "return _node"
+
     src += `}`
 
     return src
@@ -188,7 +263,7 @@ function $build(target: string) {
     }
 
     const src = parts.values().toArray().join("")
-    console.log(">>>", src)
+    console.log(src)
     return eval(src + `; parse_${target}`)
 }
 

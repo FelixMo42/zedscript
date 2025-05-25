@@ -1,5 +1,5 @@
-import { FileNode, StatmentNode } from "../../../out/types.ts";
-import { ExprNode, parse } from "../../lang/parse.ts";
+import { ExprNode, FileNode, StatmentNode } from "../../../out/types.ts";
+import { parse } from "../../lang/parse.ts";
 
 type Expr = Expr[] | string | number
 
