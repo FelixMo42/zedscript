@@ -148,7 +148,7 @@ const parse_file = p3<FileNode>("file_node")`
     while_node  = "while" cond:${parse_expr} "{" body:statment_node* "}"
     return_node = "return" value:parse_expr
 
-    if_node = "if" cond:${parse_expr} "{" a:statment_node* "}" "else" "{" b:statment_node* "}"
+    if_node = "if" cond:parse_expr "{" a:statment_node* "}" "else" "{" b:statment_node* "}"
     if_node = "if" cond:parse_expr "{" a:statment_node* "}" "else" b:if_node
     if_node = "if" cond:parse_expr "{" a:statment_node* "}"
 

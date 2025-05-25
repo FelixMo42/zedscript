@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 
-import { TokenStream } from "../lang/lexer.ts";
+import { TokenStream } from "../lang/lexer.ts"
 import { writeFileSync } from "node:fs"
 
 // TYPES //
@@ -100,6 +100,11 @@ function $build_rule(rule: Rule) {
                 if (step.flag === ",") src += "tks.take(\",\");"
                 src += `${step.name}.push(_temp);`
                 src += "}"
+            } else if (types.get(rule.name)?.get(step.name)?.includes("[]")) {
+                src += `${step.name} = ${$build_cond(step.cond)};`
+                src += `if (${step.name}) {`
+                src += `${step.name} = [${step.name}];`
+                number_of_closing_brakets++
             } else {
                 src += `${step.name} = ${$build_cond(step.cond)};`
                 src += `if (${step.name}) {`
@@ -114,7 +119,18 @@ function $build_rule(rule: Rule) {
     if (rule.find(r => r.name === "$out")) {
         src += `return $out;`
     } else {
-        src += `return { kind: "${rule.name.toUpperCase()}", ${rule.filter(r => r.name != undefined).map(r => r.name).join(", ")} };`
+        const defined_fields = rule.filter(r => r.name != undefined).map(r => r.name) as string[]
+
+        const undefined_fields = types
+            .get(rule.name)!
+            .keys()
+            .filter((field) => !defined_fields.includes(field))
+            .filter((field) => types.get(rule.name)!.get(field)?.includes("[]"))
+            .map((field) => `${field}: []`)
+
+        const fields = [...defined_fields, ...undefined_fields].join(",")
+
+        src += `return { kind: "${rule.name.toUpperCase()}", ${fields} };`
     }
 
     src += "}".repeat(number_of_closing_brakets)
@@ -172,9 +188,7 @@ function $build(target: string) {
     }
 
     const src = parts.values().toArray().join("")
-
-    // console.log(src.length, src)
-    
+    console.log(">>>", src)
     return eval(src + `; parse_${target}`)
 }
 
@@ -191,8 +205,9 @@ function step_to_type(step: Step) {
     return cond_to_type(step.cond) + (step.flag ? "[]" : "")
 }
 
+const types = new Map<string, Map<string, string>>()
+
 function $build_types() {
-    const types = new Map<string, Map<string, string>>()
     const alias = new Map<string, Set<string>>()
 
     RULES.forEach(rule => {
@@ -206,7 +221,15 @@ function $build_types() {
                 if (step.name === "$out") {
                     alias.get(type)?.add(step_to_type(step))
                 } else {
-                    types.get(type)?.set(step.name!, step_to_type(step))
+                    const current = types.get(type)?.get(step.name!)
+                    if (current) {
+                        if (!current.includes(step_to_type(step).replace("[]", ""))) {
+                            const new_type = current + " | " + step_to_type(step)
+                            types.get(type)?.set(step.name!, new_type)
+                        }
+                    } else {
+                        types.get(type)?.set(step.name!, step_to_type(step))
+                    }
                 }
             }
         }
@@ -219,7 +242,11 @@ function $build_types() {
             src += `    {\n`
             src += `        kind: "${type_name.toUpperCase()}"\n`
             for (const [key, val] of fields.entries()) {
-                src += `        ${key}: ${val}\n`
+                if (val.includes("[]") && val.includes(" | ")) {
+                    src += `        ${key}: (${val.replaceAll("[]", "")})[]\n`
+                } else {
+                    src += `        ${key}: ${val}\n`
+                }
             }
             src += "    }\n"
         }
@@ -248,5 +275,5 @@ function snakeToPascal(snake: string) {
     return snake
         .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join('');
+        .join('')
 }
