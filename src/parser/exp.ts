@@ -1,11 +1,7 @@
-// deno-lint-ignore-file no-explicit-any
-
-import { TokenStream } from "../lang/lexer.ts"
+import { lexer } from "../lang/lexer.ts"
 import { writeFileSync } from "node:fs"
 
 // TYPES //
-
-type Parser = (tks: TokenStream) => any
 
 interface Step {
     name?: string
@@ -15,24 +11,9 @@ interface Step {
 
 type Rule = Step[] & { name: string }
 
-const PARSERS = new Map<string, Parser>()
 const RULES   = [] as Rule[]
 
 // PARSE //
-
-function $build_parse_rule_string(rule: TemplateStringsArray, parsers: Parser[]): string {
-    return rule.reduce((merged, chunk, i) => {
-        merged += chunk
-
-        if (i < parsers.length) {
-            const name = parsers[i].name || `parse_ano_${PARSERS.size}`
-            PARSERS.set(name, parsers[i])
-            merged += name
-        }
-
-        return merged
-    }, "")
-}
 
 function $parse_rule_token(token: string): Step {
     // pull out ending modifiers
@@ -52,11 +33,8 @@ function $parse_rule_token(token: string): Step {
     return { cond: token, flag: "" }
 }
 
-function $parse_rule(rule: TemplateStringsArray, parsers: Parser[]) {
-    const tokens = $build_parse_rule_string(rule, parsers)
-        .split(" ")
-        .map(t => t.trim())
-        .filter(t => t != "")
+function $parse_rule(rule: string) {
+    const tokens = rule.split(" ").map(t => t.trim()).filter(t => t != "")
 
     let current_rule: Rule = Object.assign([], { name: "ERROR" })
 
@@ -82,7 +60,6 @@ function $parse_rule(rule: TemplateStringsArray, parsers: Parser[]) {
 function $build_cond(cond: string) {
     if (cond.startsWith("\"")) return `tks.take(${cond})`
     if (["ident", "number", "string"].includes(cond)) return `tks.take("<${cond}>")`
-    if (cond.includes("parse")) return `PARSERS.get("${cond}")(tks)`
     return `parse_${cond}(tks)`
 }
 
@@ -202,7 +179,6 @@ function $build_recursive_rule(rule: Rule) {
     return src
 }
 
-
 const UNNEEDED = new Set<string>()
 
 function $build_ruleset(target: string) {
@@ -263,7 +239,6 @@ function $build(target: string) {
     }
 
     const src = parts.values().toArray().join("")
-    console.log(src)
     return eval(src + `; parse_${target}`)
 }
 
@@ -338,11 +313,18 @@ function $build_types() {
     }
 }
 
-export function p3<T>(target: string): (template: TemplateStringsArray, ...values: Parser[]) => (tks: TokenStream, build?: string | ((node: any) => T | undefined)) => (T | undefined) {
-    return (template, ...values) => {
-        $parse_rule(template, values)
-        $build_types()
-        return $build(target)
+export function build_parser<T>(template: TemplateStringsArray): (src: string) => T {
+    $parse_rule(template.join(""))
+    $build_types()
+    const parse = $build("file_node")
+    return (src: string) => {
+        const ast = parse(lexer(src))
+        
+        if (!ast) {
+            throw new Error("ERR: Failed to parse file!")
+        }
+
+        return ast
     }
 }
 

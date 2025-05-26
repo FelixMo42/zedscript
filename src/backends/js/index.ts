@@ -32,7 +32,7 @@ function buildStatment(s: StatmentNode): Expr {
 function buildExpr(s: ExprNode): Expr {
     if (s.kind === "NUMBER_NODE") {
         return Number(s.value)
-    } else if (s.kind === "OP_NODE") {
+    } else if ("op" in s) {
         return [`@${s.op}`, buildExpr(s.a), buildExpr(s.b)]
     } else if (s.kind === "IDENT_NODE") {
         return s.value

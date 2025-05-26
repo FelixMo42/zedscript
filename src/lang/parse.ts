@@ -1,21 +1,7 @@
-import { p3 } from "../parser/exp.ts";
-import { lexer } from "./lexer.ts";
+import { build_parser } from "../parser/exp.ts";
 import { FileNode } from "../../out/types.ts";
 
-// EXPR //
-
-// function parse_ops(tks: TokenStream) {
-//     return parse_op_util(parse_value, [
-//         ["==", ">", "<", ">=", "<="],
-//         ["+", "-"],
-//         ["*", "/"],
-//         ["**"]
-//     ])(tks)
-// }
-
-// TOP LEVEL //
-
-const parse_file = p3<FileNode>("file_node")`
+export const parse = build_parser<FileNode>`
     file_node = items:top_level_decl_node*
 
     top_level_decl_node = :func_node
@@ -54,8 +40,26 @@ const parse_file = p3<FileNode>("file_node")`
 
     expr_node = :ternary_node
 
-    ternary_node = a:value_node "if" cond:expr_node "else" b:expr_node
-    ternary_node = :value_node
+    ternary_node = a:v1_node "if" cond:expr_node "else" b:expr_node
+    ternary_node = :v1_node
+
+    v1_node = a:v2_node op:"==" b:v1_node
+    v1_node = a:v2_node op:">" b:v1_node
+    v1_node = a:v2_node op:"<" b:v1_node
+    v1_node = a:v2_node op:">=" b:v1_node
+    v1_node = a:v2_node op:"<=" b:v1_node
+    v1_node = :v2_node
+
+    v2_node = a:v3_node op:"+" b:v2_node
+    v2_node = a:v3_node op:"-" b:v2_node
+    v2_node = :v3_node
+
+    v3_node = a:v4_node op:"*" b:v3_node
+    v3_node = a:v4_node op:"/" b:v3_node
+    v3_node = :v4_node
+
+    v4_node = a:value_node op:"**" b:v4_node
+    v4_node = :value_node
 
     value_node = :index_node
     value_node = :field_node
@@ -78,27 +82,3 @@ const parse_file = p3<FileNode>("file_node")`
 
     arg_node = name:ident ":" value:expr_node
 `
-
-export function parse(src: string) {
-    return parse_file(lexer(src))!
-}
-
-// function parse_op_util(sub: (tks: TokenStream) => ExprNode | undefined, ops: Op[][]): (tks: TokenStream) => ExprNode | undefined {
-//     const s = ops.length > 1 ? parse_op_util(sub, ops.slice(1)) : sub
-
-//     return function self(tks: TokenStream): ExprNode | undefined {
-//         const a = s(tks)
-//         if (!a) return undefined
-//         const save = tks.save()
-
-//         for (const op of ops[0]) {
-//             if (tks.take(op)) {
-//                 const b = self(tks)!
-//                 return { kind: "OP_NODE", op, a, b }
-//             }
-//         }
-
-//         tks.load(save)
-//         return a
-//     }
-// }
