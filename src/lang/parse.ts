@@ -1,4 +1,4 @@
-import { build_parser } from "../parser/exp.ts";
+import { build_parser } from "../parser/parser_builder.ts";
 import { FileNode } from "../../out/types.ts";
 
 export const parse = build_parser<FileNode>`
@@ -44,8 +44,8 @@ export const parse = build_parser<FileNode>`
     ternary_node = :v1_node
 
     v1_node = a:v2_node op:"==" b:v1_node
-    v1_node = a:v2_node op:">" b:v1_node
-    v1_node = a:v2_node op:"<" b:v1_node
+    v1_node = a:v2_node op:">"  b:v1_node
+    v1_node = a:v2_node op:"<"  b:v1_node
     v1_node = a:v2_node op:">=" b:v1_node
     v1_node = a:v2_node op:"<=" b:v1_node
     v1_node = :v2_node

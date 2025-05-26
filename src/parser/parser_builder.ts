@@ -11,7 +11,7 @@ interface Step {
 
 type Rule = Step[] & { name: string }
 
-const RULES   = [] as Rule[]
+const RULES = [] as Rule[]
 
 // PARSE //
 
@@ -36,26 +36,24 @@ function $parse_rule_token(token: string): Step {
 function $parse_rule(rule: string) {
     const tokens = rule.split(" ").map(t => t.trim()).filter(t => t != "")
 
-    let current_rule: Rule = Object.assign([], { name: "ERROR" })
-
     for (let i = 0; i < tokens.length; i++) {
         // we are at the start of a new rule!
         if (tokens[i+1] == "=") {
             // start new rule
-            current_rule = Object.assign([], { name: tokens[i] })
-            RULES.push(current_rule)
+            RULES.push(Object.assign([], { name: tokens[i] }))
 
             // skip the "=" token
             i += 1
-
-        // else add this token to the current rule
         } else {
-            current_rule.push($parse_rule_token(tokens[i]))
+            // else add this token to the current rule
+            RULES.at(-1)!.push($parse_rule_token(tokens[i]))
         }
     }
 }
 
 // BUILD //
+
+const UNNEEDED = new Set<string>()
 
 function $build_cond(cond: string) {
     if (cond.startsWith("\"")) return `tks.take(${cond})`
@@ -63,36 +61,42 @@ function $build_cond(cond: string) {
     return `parse_${cond}(tks)`
 }
 
+function $build_step(rule: Rule, step: Step, next: string) {
+    let src = ""
+
+    if (step.name) {
+        if (step.flag === "*" || step.flag === ",") {
+            src += `${step.name} = [];`
+            src += `while (true) {`
+            src += `const _temp = ${$build_cond(step.cond)};`
+            src += `if (!_temp) break;`
+            if (step.flag === ",") src += "tks.take(\",\");"
+            src += `${step.name}.push(_temp);`
+            src += "}"
+            src += next
+        } else if (types.get(rule.name)?.get(step.name)?.includes("[]")) {
+            src += `${step.name} = ${$build_cond(step.cond)};`
+            src += `if (${step.name}) {`
+            src += `${step.name} = [${step.name}];`
+            src += next
+            src += `}`
+        } else {
+            src += `${step.name} = ${$build_cond(step.cond)};`
+            src += `if (${step.name}) {`
+            src += next
+            src += `}`
+        }
+    } else {
+        src += `if (${$build_cond(step.cond)}) {`
+        src += next
+        src += `}`
+    }
+
+    return src
+}
+
 function $build_rule(rule: Rule) {
     let src = ""
-    let number_of_closing_brakets = 0
-
-    // rule matching steps
-    for (const step of rule) {
-        if (step.name) {
-            if (step.flag === "*" || step.flag === ",") {
-                src += `${step.name} = [];`
-                src += `while (true) {`
-                src += `const _temp = ${$build_cond(step.cond)};`
-                src += `if (!_temp) break;`
-                if (step.flag === ",") src += "tks.take(\",\");"
-                src += `${step.name}.push(_temp);`
-                src += "}"
-            } else if (types.get(rule.name)?.get(step.name)?.includes("[]")) {
-                src += `${step.name} = ${$build_cond(step.cond)};`
-                src += `if (${step.name}) {`
-                src += `${step.name} = [${step.name}];`
-                number_of_closing_brakets++
-            } else {
-                src += `${step.name} = ${$build_cond(step.cond)};`
-                src += `if (${step.name}) {`
-                number_of_closing_brakets++
-            }
-        } else {
-            src += `if (${$build_cond(step.cond)}) {`
-            number_of_closing_brakets++
-        }
-    }
 
     // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
@@ -112,43 +116,14 @@ function $build_rule(rule: Rule) {
         src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; break;`
     }
 
-    // add closing brackets
-    src += "}".repeat(number_of_closing_brakets)
-    src += "tks.load(_save);"
-
-    return src
+    // rule matching steps
+    return rule
+        .reduceRight((next, step) => $build_step(rule, step, next), src)
+        + "tks.load(_save);"
 }
 
 function $build_recursive_rule(rule: Rule) {
     let src = ""
-    let number_of_closing_brakets = 0
-
-    // rule matching steps
-    for (const step of rule.slice(1)) {
-        if (step.name) {
-            if (step.flag === "*" || step.flag === ",") {
-                src += `${step.name} = [];`
-                src += `while (true) {`
-                src += `const _temp = ${$build_cond(step.cond)};`
-                src += `if (!_temp) break;`
-                if (step.flag === ",") src += "tks.take(\",\");"
-                src += `${step.name}.push(_temp);`
-                src += "}"
-            } else if (types.get(rule.name)?.get(step.name)?.includes("[]")) {
-                src += `${step.name} = ${$build_cond(step.cond)};`
-                src += `if (${step.name}) {`
-                src += `${step.name} = [${step.name}];`
-                number_of_closing_brakets++
-            } else {
-                src += `${step.name} = ${$build_cond(step.cond)};`
-                src += `if (${step.name}) {`
-                number_of_closing_brakets++
-            }
-        } else {
-            src += `if (${$build_cond(step.cond)}) {`
-            number_of_closing_brakets++
-        }
-    }
 
     // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
@@ -172,14 +147,11 @@ function $build_recursive_rule(rule: Rule) {
         src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; continue;`
     }
 
-    // add closing brackets
-    src += "}".repeat(number_of_closing_brakets)
-    src += "tks.load(_save);"
-
-    return src
+    return rule
+        .slice(1)
+        .reduceRight((next, step) => $build_step(rule, step, next), src)
+        + "tks.load(_save);"
 }
-
-const UNNEEDED = new Set<string>()
 
 function $build_ruleset(target: string) {
     let src = ""
@@ -244,18 +216,18 @@ function $build(target: string) {
 
 //
 
-function cond_to_type(cond: string) {
+const types = new Map<string, Map<string, string>>()
+
+function $cond_to_type(cond: string) {
     if (cond.startsWith("\"")) return "string"
     if (["ident", "number", "string"].includes(cond)) return "string"
     if (cond.includes("parse")) return `any`
     return snakeToPascal(cond)
 }
 
-function step_to_type(step: Step) {
-    return cond_to_type(step.cond) + (step.flag ? "[]" : "")
+function $step_to_type(step: Step) {
+    return $cond_to_type(step.cond) + (step.flag ? "[]" : "")
 }
-
-const types = new Map<string, Map<string, string>>()
 
 function $build_types() {
     const alias = new Map<string, Set<string>>()
@@ -269,16 +241,16 @@ function $build_types() {
         for (const rule of RULES.filter(rule => rule.name === type)) {
             for (const step of rule.filter(step => step.name)) {
                 if (step.name === "$out") {
-                    alias.get(type)?.add(step_to_type(step))
+                    alias.get(type)?.add($step_to_type(step))
                 } else {
                     const current = types.get(type)?.get(step.name!)
                     if (current) {
-                        if (!current.includes(step_to_type(step).replace("[]", ""))) {
-                            const new_type = current + " | " + step_to_type(step)
+                        if (!current.includes($step_to_type(step).replace("[]", ""))) {
+                            const new_type = current + " | " + $step_to_type(step)
                             types.get(type)?.set(step.name!, new_type)
                         }
                     } else {
-                        types.get(type)?.set(step.name!, step_to_type(step))
+                        types.get(type)?.set(step.name!, $step_to_type(step))
                     }
                 }
             }

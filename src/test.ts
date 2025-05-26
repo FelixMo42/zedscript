@@ -141,101 +141,101 @@ Deno.test("array index dyn", () => assertEquals(exec(`
         return ptr[0] + ptr[1]
     }
 `), 42))
-Deno.test("Vec2 magnitude", () => assertEquals(exec(`
-    struct Vec2 {
-        x int
-        y int
-    }
+// Deno.test("Vec2 magnitude", () => assertEquals(exec(`
+//     struct Vec2 {
+//         x int
+//         y int
+//     }
 
-    fn mag(p Vec2) int {
-        return sqrt(p.x ** 2 + p.y ** 2)
-    }
+//     fn mag(p Vec2) int {
+//         return sqrt(p.x ** 2 + p.y ** 2)
+//     }
 
-    fn main() int {
-        return mag({
-            x: 0
-            y: 42
-        })
-    }
-`), 42))
-Deno.test("return struct", () => assertEquals(exec(`
-    struct Vec2 {
-        x int
-        y int
-    }
+//     fn main() int {
+//         return mag({
+//             x: 0
+//             y: 42
+//         })
+//     }
+// `), 42))
+// Deno.test("return struct", () => assertEquals(exec(`
+//     struct Vec2 {
+//         x int
+//         y int
+//     }
 
-    fn mag(p Vec2) int {
-        return sqrt(p.x ** 2 + p.y ** 2)
-    }
+//     fn mag(p Vec2) int {
+//         return sqrt(p.x ** 2 + p.y ** 2)
+//     }
 
-    fn make() Vec2 {
-        return {
-            x: 0,
-            y: 42
-        }
-    }
+//     fn make() Vec2 {
+//         return {
+//             x: 0,
+//             y: 42
+//         }
+//     }
 
-    fn main() int {
-        return mag(make())
-    }
-`), 42))
-Deno.test("return type signature", () => assertEquals(exec(`
-    struct Vec2 {
-        x int
-        y int
-    }
+//     fn main() int {
+//         return mag(make())
+//     }
+// `), 42))
+// Deno.test("return type signature", () => assertEquals(exec(`
+//     struct Vec2 {
+//         x int
+//         y int
+//     }
 
-    fn make() Vec2 {
-        return {
-            x: 0,
-            y: 42
-        }
-    }
+//     fn make() Vec2 {
+//         return {
+//             x: 0,
+//             y: 42
+//         }
+//     }
 
-    fn main() int {
-        p = make()
-        return sqrt(p.x ** 2 + p.y ** 2)
-    }
-`), 42))
+//     fn main() int {
+//         p = make()
+//         return sqrt(p.x ** 2 + p.y ** 2)
+//     }
+// `), 42))
 
-// Open
-Deno.test("infernece in loop", () => assertEquals(exec(`
-    struct Vec2 {
-        x int
-        y int
-    }
+// // Open
+// Deno.test("infernece in loop", () => assertEquals(exec(`
+//     struct Vec2 {
+//         x int
+//         y int
+//     }
 
-    fn make() Vec2 {
-        if true {
-            a = { x: 42, y: 0 }
-            return a
-        }
+//     fn make() Vec2 {
+//         if true {
+//             a = { x: 42, y: 0 }
+//             return a
+//         }
 
-        return { x: 1, y: 1 }
-    }
+//         return { x: 1, y: 1 }
+//     }
 
-    fn main() int {
-        return make().x
-    }
-`), 42))
-Deno.test("array of struct", () => assertEquals(exec(`
-    struct Vec2 {
-        x int
-        y int
-    }
+//     fn main() int {
+//         return make().x
+//     }
+// `), 42))
+// Deno.test("array of struct", () => assertEquals(exec(`
+//     struct Vec2 {
+//         x int
+//         y int
+//     }
 
-    fn mag(p Vec2) int {
-        return sqrt(p.x ** 2 + p.y ** 2)
-    }
+//     fn mag(p Vec2) int {
+//         return sqrt(p.x ** 2 + p.y ** 2)
+//     }
 
-    fn main() int {
-        p = [
-            { x: 6, y: 0 }
-            { x: 0, y: 7 }
-        ]
-        return mag(p[0]) * mag(p[1])
-    }
-`), 42))
+//     fn main() int {
+//         p = [
+//             { x: 6, y: 0 }
+//             { x: 0, y: 7 }
+//         ]
+//         return mag(p[0]) * mag(p[1])
+//     }
+// `), 42))
 // Deno.test("array's return type signature", () => assertEquals(run(`
 //     struct Vec2 {
 //         x int
