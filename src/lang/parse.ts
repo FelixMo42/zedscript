@@ -1,5 +1,5 @@
-import { build_parser } from "../parser/parser_builder.ts";
-import { FileNode } from "../../out/types.ts";
+import { build_parser } from "@src/core/parser_builder.ts";
+import { FileNode } from "@out/types.ts";
 
 export const parse = build_parser<FileNode>`
     file_node = items:top_level_decl_node*

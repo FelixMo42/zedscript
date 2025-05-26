@@ -1,6 +1,6 @@
 import { assertEquals } from "jsr:@std/assert";
 
-import { exec } from "./backends/js/index.ts";
+import { exec } from "@src/backends/js/index.ts";
 
 function assert_stmt(stmt: string, value: number | boolean) {
     const type = typeof value == "number" ? "int" : "bool" 

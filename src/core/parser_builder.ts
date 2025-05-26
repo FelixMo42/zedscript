@@ -1,4 +1,4 @@
-import { lexer } from "../lang/lexer.ts"
+import { lexer } from "@src/lang/lexer.ts"
 import { writeFileSync } from "node:fs"
 
 // TYPES //
