@@ -2,5 +2,8 @@
   "imports": {
     "@src/": "./src/",
     "@out/": "./out/"
+  },
+  "tasks": {
+    "start": "deno run --allow-all src/main.ts"
   }
 }

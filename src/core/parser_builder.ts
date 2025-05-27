@@ -1,5 +1,6 @@
 import { lexer } from "@src/lang/lexer.ts"
 import { writeFileSync } from "node:fs"
+import { as_struct, is_array, merge, Type, TYPES, typesToJS, unique } from "@src/core/code_gen.ts";
 
 // TYPES //
 
@@ -68,22 +69,22 @@ function $build_step(rule: Rule, step: Step, next: string) {
         if (step.flag === "*" || step.flag === ",") {
             src += `${step.name} = [];`
             src += `while (true) {`
-            src += `const _temp = ${$build_cond(step.cond)};`
-            src += `if (!_temp) break;`
+            src +=      `const _temp = ${$build_cond(step.cond)};`
+            src +=      `if (!_temp) break;`
             if (step.flag === ",") src += "tks.take(\",\");"
-            src += `${step.name}.push(_temp);`
+            src +=      `${step.name}.push(_temp);`
             src += "}"
             src += next
-        } else if (types.get(rule.name)?.get(step.name)?.includes("[]")) {
+        } else if (is_array(TYPES.get(rule.name)!)) {
             src += `${step.name} = ${$build_cond(step.cond)};`
             src += `if (${step.name}) {`
-            src += `${step.name} = [${step.name}];`
-            src += next
+            src +=      `${step.name} = [${step.name}];`
+            src +=      next
             src += `}`
         } else {
             src += `${step.name} = ${$build_cond(step.cond)};`
             src += `if (${step.name}) {`
-            src += next
+            src +=      next
             src += `}`
         }
     } else {
@@ -104,12 +105,9 @@ function $build_rule(rule: Rule) {
     } else {
         const defined_fields = rule.filter(r => r.name != undefined).map(r => r.name) as string[]
 
-        const undefined_fields = types
-            .get(rule.name)!
-            .keys()
-            .filter((field) => !defined_fields.includes(field))
-            .filter((field) => types.get(rule.name)!.get(field)?.includes("[]"))
-            .map((field) => `${field}: []`)
+        const undefined_fields = as_struct(TYPES.get(rule.name)!)[1]
+            .filter(([k, v]) => !defined_fields.includes(k) && is_array(v))
+            .map(([k]) => `${k}: []`)
 
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
@@ -135,12 +133,9 @@ function $build_recursive_rule(rule: Rule) {
 
         defined_fields[0] = `${rule[0].name}:_node`
 
-        const undefined_fields = types
-            .get(rule.name)!
-            .keys()
-            .filter((field) => !defined_fields.includes(field))
-            .filter((field) => types.get(rule.name)!.get(field)?.includes("[]"))
-            .map((field) => `${field}: []`)
+        const undefined_fields = as_struct(TYPES.get(rule.name)!)[1]
+            .filter(([k, v]) => !defined_fields.includes(k) && is_array(v))
+            .map(([k]) => `${k}: []`)
 
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
@@ -181,19 +176,18 @@ function $build_ruleset(target: string) {
 
     // build the function
     src += `function parse_${target}(tks) {`
-    src += `let ${[...locals.values()].join(",")};`
-    src += `_save = tks.save();`
-
-    src += "while (true) {"
-    src += rules.filter(rule => rule[0].cond != target).map($build_rule).join("")
-    src += "return}"
-
-    src += "while (true) {"
-    src += `_save = tks.save();`
-    src += rules.filter(rule => rule[0].cond === target).map($build_recursive_rule).join("")
-    src += "break}"
-    src += "return _node"
-
+    src +=      `let ${[...locals.values()].join(",")};`
+    src +=      `_save = tks.save();`
+    src +=      "while (true) {"
+    src +=          rules.filter(rule => rule[0].cond != target).map($build_rule).join("")
+    src +=          "return"
+    src +=      "}"
+    src +=      "while (true) {"
+    src +=          `_save = tks.save();`
+    src +=          rules.filter(rule => rule[0].cond === target).map($build_recursive_rule).join("")
+    src +=          "break"
+    src +=      "}"
+    src +=      "return _node"
     src += `}`
 
     return src
@@ -216,70 +210,60 @@ function $build(target: string) {
 
 //
 
-const types = new Map<string, Map<string, string>>()
-
-function $cond_to_type(cond: string) {
-    if (cond.startsWith("\"")) return "string"
-    if (["ident", "number", "string"].includes(cond)) return "string"
-    if (cond.includes("parse")) return `any`
-    return snakeToPascal(cond)
+function $cond_to_type(cond: string): Type {
+    if (cond.startsWith("\"")) return ["@string"]
+    if (["ident", "number", "string"].includes(cond)) return ["@string"]
+    return [cond]
 }
 
-function $step_to_type(step: Step) {
-    return $cond_to_type(step.cond) + (step.flag ? "[]" : "")
+function $step_to_type(step: Step): Type {
+    if (step.flag) {
+        return ["@array", $cond_to_type(step.cond)]
+    } else {
+        return $cond_to_type(step.cond)
+    }
+}
+
+function $ruleset_type(ruleset: string): Type {
+    const fields = new Map<string, Type>
+    const aliases = new Set<Type>()
+    const rules = RULES.filter(rule => rule.name === ruleset) 
+
+    for (const rule of rules) {
+        for (const step of rule) {
+            if (step.name === "$out") {
+                aliases.add($step_to_type(step))
+            } else if (step.name) {
+                if (fields.has(step.name)) {
+                    fields.set(step.name, merge(
+                        fields.get(step.name)!,
+                        $step_to_type(step)
+                    ))
+                } else {
+                    fields.set(step.name, $step_to_type(step))
+                }
+            }
+        }
+    }
+
+    if (fields.size > 0) {
+        return ["@struct", fields.entries().toArray()]
+        // TODO: What about unions types now?
+    } else {
+        return ["@union", aliases.values().toArray()]
+    }
 }
 
 function $build_types() {
-    const alias = new Map<string, Set<string>>()
+    // get a list of all rulesets
+    const rulesets = unique(RULES.map(r => r.name))
 
-    RULES.forEach(rule => {
-        types.set(rule.name, new Map())
-        alias.set(rule.name, new Set())
-    })
+    // turn each of them into types
+    rulesets.forEach(ruleset => TYPES.set(ruleset, $ruleset_type(ruleset)))
 
-    for (const type of types.keys()) {
-        for (const rule of RULES.filter(rule => rule.name === type)) {
-            for (const step of rule.filter(step => step.name)) {
-                if (step.name === "$out") {
-                    alias.get(type)?.add($step_to_type(step))
-                } else {
-                    const current = types.get(type)?.get(step.name!)
-                    if (current) {
-                        if (!current.includes($step_to_type(step).replace("[]", ""))) {
-                            const new_type = current + " | " + $step_to_type(step)
-                            types.get(type)?.set(step.name!, new_type)
-                        }
-                    } else {
-                        types.get(type)?.set(step.name!, $step_to_type(step))
-                    }
-                }
-            }
-        }
-    }
-
-    let src = ""
-    for (const [type_name, fields] of types.entries()) {
-        src += `export type ${snakeToPascal(type_name)} =\n`
-        if (fields.size > 0) {
-            src += `    {\n`
-            src += `        kind: "${type_name.toUpperCase()}"\n`
-            for (const [key, val] of fields.entries()) {
-                if (val.includes("[]") && val.includes(" | ")) {
-                    src += `        ${key}: (${val.replaceAll("[]", "")})[]\n`
-                } else {
-                    src += `        ${key}: ${val}\n`
-                }
-            }
-            src += "    }\n"
-        }
-        for (const a of alias.get(type_name)!.values()) {
-            src += `    | ${a}\n`
-        }
-        src += "\n"
-    }
-    
+    // write out the types
     try {
-        writeFileSync("./out/types.ts", src)
+        writeFileSync("./out/types.ts", typesToJS())
     } catch (_e) {
         // we're probly in a unit test, this is fine
     }
@@ -298,11 +282,4 @@ export function build_parser<T>(template: TemplateStringsArray): (src: string) =
 
         return ast
     }
-}
-
-function snakeToPascal(snake: string) {
-    return snake
-        .split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join('')
 }
