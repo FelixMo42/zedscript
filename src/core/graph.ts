@@ -22,6 +22,10 @@ export class Block {
     }
 
     goes_to(target: Block) {
+        if (this.children.length === 1 && !this.data) {
+            throw new Error("Can't add second child!")
+        }
+    
         return this.$add_edge(target)
     }
 

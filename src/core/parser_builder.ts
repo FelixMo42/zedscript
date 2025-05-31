@@ -1,6 +1,8 @@
 import { lexer } from "@src/lang/lexer.ts"
 import { writeFileSync } from "node:fs"
 import { as_struct, is_array, merge, Type, TYPES, typesToJS, unique } from "@src/core/code_gen.ts";
+import { Block } from "@src/core/graph.ts";
+import { stackify } from "@src/core/stackifier.ts";
 
 // TYPES //
 
@@ -62,75 +64,76 @@ function $build_cond(cond: string) {
     return `parse_${cond}(tks)`
 }
 
-function $build_step(rule: Rule, step: Step, next: string) {
-    let src = ""
+function $build_step(rule: Rule, step: Step, suc: Block, err: Block): Block {
+    const node = new Block()
 
     if (step.name) {
         if (step.flag === "*" || step.flag === ",") {
-            src += `${step.name} = [];`
-            src += `while (true) {`
-            src +=      `const _temp = ${$build_cond(step.cond)};`
-            src +=      `if (!_temp) break;`
-            if (step.flag === ",") src += "tks.take(\",\");"
-            src +=      `${step.name}.push(_temp);`
-            src += "}"
-            src += next
+            node.with(`${step.name} = []`)
+
+            const loop = new Block()
+
+            const loop_inner = new Block()
+                .with(`${step.name}.push(_temp)`)
+                .goes_to(loop)
+
+            if (step.flag === ",") loop_inner.with("tks.take(\",\");")
+
+            loop.with(`const _temp = ${$build_cond(step.cond)}`)
+                .branch(`!_temp`, suc, loop_inner)
+    
+            node.goes_to(loop)
         } else if (is_array(TYPES.get(rule.name)!)) {
-            src += `${step.name} = ${$build_cond(step.cond)};`
-            src += `if (${step.name}) {`
-            src +=      `${step.name} = [${step.name}];`
-            src +=      next
-            src += `}`
+            node.with(`${step.name} = ${$build_cond(step.cond)}`)
+                .branch(step.name,
+                    new Block()
+                        .with(`${step.name} = [${step.name}]`)
+                        .goes_to(suc),
+                    err
+                )
         } else {
-            src += `${step.name} = ${$build_cond(step.cond)};`
-            src += `if (${step.name}) {`
-            src +=      next
-            src += `}`
+            node.with(`${step.name} = ${$build_cond(step.cond)}`)
+                .branch(step.name, suc, err)
         }
     } else {
-        src += `if (${$build_cond(step.cond)}) {`
-        src += next
-        src += `}`
+        node.branch($build_cond(step.cond), suc, err)
     }
 
-    return src
+    return node
 }
 
-function $build_rule(rule: Rule) {
-    let src = ""
+function $build_rule(rule: Rule, suc: Block, err: Block): Block {
+    const return_node = new Block().goes_to(suc)
 
     // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
-        src += `_node = $out; break;`
+        return_node.with(`_node = $out`)
     } else {
-        // 
         const defined_fields = rule
             .filter(r => r.name != undefined)
             .map(r => r.name) as string[]
 
-        // 
         const undefined_fields = as_struct(TYPES.get(rule.name)!)[1]
             .filter(([k, v]) => !defined_fields.includes(k) && is_array(v))
             .map(([k]) => `${k}: []`)
 
-        //
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
-        src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; break;`
+        return_node.with(`_node = { kind: "${rule.name.toUpperCase()}", ${fields} }`)
     }
 
+    const fail = new Block().with("tks.load(_save);").goes_to(err)
+
     // rule matching steps
-    return rule
-        .reduceRight((next, step) => $build_step(rule, step, next), src)
-        + "tks.load(_save);"
+    return rule.reduceRight((next, step) => $build_step(rule, step, next, fail), return_node)
 }
 
-function $build_recursive_rule(rule: Rule) {
-    let src = ""
+function $build_recursive_rule(rule: Rule, suc: Block, err: Block): Block {
+    const return_node = new Block().goes_to(suc)
 
     // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
-        src += `_node = $out; continue;`
+        return_node.with(`_node = $out`)
     } else {
         const defined_fields = rule
             .filter(r => r.name != undefined)
@@ -144,19 +147,18 @@ function $build_recursive_rule(rule: Rule) {
 
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
-        src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; continue;`
+        return_node.with(`_node = { kind: "${rule.name.toUpperCase()}", ${fields} }`)
     }
+
+    const fail = new Block().with("tks.load(_save);").goes_to(err)
 
     return rule
         .slice(1)
-        .reduceRight((next, step) => $build_step(rule, step, next), src)
-        + "tks.load(_save);"
+        .reduceRight((next, step) => $build_step(rule, step, next, fail), return_node)
 }
 
 function $build_ruleset(target: string) {
-    let src = ""
-
-    // what rules are gonna be included?
+    // what rules are included in the ruleset?
     const rules = RULES
         .filter(rule => rule.name === target)
         .map(rule => {
@@ -179,23 +181,28 @@ function $build_ruleset(target: string) {
             .forEach(rule => locals.add(rule.name!))
     }
 
-    // build the function
-    src += `function parse_${target}(tks) {`
-    src +=      `let ${[...locals.values()].join(",")};`
-    src +=      `_save = tks.save();`
-    src +=      "while (true) {"
-    src +=          rules.filter(rule => rule[0].cond != target).map($build_rule).join("")
-    src +=          "return"
-    src +=      "}"
-    src +=      "while (true) {"
-    src +=          `_save = tks.save();`
-    src +=          rules.filter(rule => rule[0].cond === target).map($build_recursive_rule).join("")
-    src +=          "break"
-    src +=      "}"
-    src +=      "return _node"
-    src += `}`
+    // build controle flow graph
+    const return_node = new Block().with(`return _node`)
 
-    return src
+    const recursive_loop_node = new Block().with(`_save = tks.save()`)
+
+    const first_recursive_rule = rules
+        .filter(rule => rule[0].cond === target)
+        .reduce((next, rule) => $build_recursive_rule(rule, recursive_loop_node, next), return_node)
+
+    recursive_loop_node.goes_to(first_recursive_rule)
+
+    const first_nonrecusive_rule = rules
+        .filter(rule => rule[0].cond != target)
+        .reduce((next, rule) => $build_rule(rule, recursive_loop_node, next), return_node)
+
+    const entry_node = new Block()
+        .with(`let ${[...locals.values()].join(",")}`)
+        .with(`_save = tks.save()`)
+        .goes_to(first_nonrecusive_rule)
+
+    // build the function
+    return `function parse_${target}(tks) { ${stackify(entry_node)} }`
 }
 
 function $build(target: string) {
