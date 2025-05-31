@@ -103,12 +103,17 @@ function $build_rule(rule: Rule) {
     if (rule.find(r => r.name === "$out")) {
         src += `_node = $out; break;`
     } else {
-        const defined_fields = rule.filter(r => r.name != undefined).map(r => r.name) as string[]
+        // 
+        const defined_fields = rule
+            .filter(r => r.name != undefined)
+            .map(r => r.name) as string[]
 
+        // 
         const undefined_fields = as_struct(TYPES.get(rule.name)!)[1]
             .filter(([k, v]) => !defined_fields.includes(k) && is_array(v))
             .map(([k]) => `${k}: []`)
 
+        //
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
         src += `_node = { kind: "${rule.name.toUpperCase()}", ${fields} }; break;`
