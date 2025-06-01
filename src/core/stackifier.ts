@@ -1,6 +1,9 @@
 import { Block, get_loops } from "@src/core/graph.ts";
 import assert from "node:assert";
 
+// Inspiration:
+// https://medium.com/leaningtech/solving-the-structured-control-flow-problem-once-and-for-all-5123117b1ee2
+
 function loop_graph(g: Block[]): Block[] {
     for (const loop of get_loops(g)) {
         // Loooop block!
@@ -134,10 +137,10 @@ function build_graph(g: Block[], level=0): string {
         src += `} else {`
         src += gotos.get(g[0].children[1])
         src += `}`
+    } else if (g[0].data?.kind === "RETURN") {
+        src += `return ${g[0].data?.value};`
     } else if (g[0].children.length === 1) {
         src += gotos.get(g[0].children[0])
-    } else if (g[0].children.length === 0) {
-        src += "return;"
     } else {
         throw new Error("Invald block targets.")
     }

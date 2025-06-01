@@ -182,7 +182,7 @@ function $build_ruleset(target: string) {
     }
 
     // build controle flow graph
-    const return_node = new Block().with(`return _node`)
+    const return_node = new Block().ret(`_node`)
 
     const recursive_loop_node = new Block().with(`_save = tks.save()`)
 
@@ -218,6 +218,11 @@ function $build(target: string) {
     }
 
     const src = parts.values().toArray().join("")
+    try {
+        writeFileSync("./out/parser.js", src.replaceAll(";", "\n"))
+    } catch {
+        // probly in test mode
+    }
     return eval(src + `; parse_${target}`)
 }
 

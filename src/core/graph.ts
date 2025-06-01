@@ -1,6 +1,7 @@
 type BlockData
     = { kind: "BRANCH", cond: string }
     | { kind: "LOOP", loop: Block[] }
+    | { kind: "RETURN", value: string }
 
 export class Block {
     code: string[] = []
@@ -32,6 +33,11 @@ export class Block {
     branch(cond: string, a: Block, b: Block) {
         this.data = { kind: "BRANCH", cond }
         return this.$add_edge(a).$add_edge(b)
+    }
+
+    ret(value: string) {
+        this.data = { kind: "RETURN", value }
+        return this
     }
 }
 

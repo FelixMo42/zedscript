@@ -4,6 +4,7 @@
     "@out/": "./out/"
   },
   "tasks": {
-    "start": "deno run --allow-all src/main.ts"
+    "start": "deno run --allow-all src/main.ts",
+    "p": "deno run start && js-beautify -n -r ./out/parser.js && nvim --headless +\"lua print('Line count: ' .. vim.api.nvim_buf_line_count(0) .. '\\n')\" +q ./out/parser.js"
   }
 }
