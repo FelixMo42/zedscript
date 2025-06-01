@@ -41,6 +41,7 @@ export function get_loops(graph: Block[]) {
     // TODO: Use better algoiryhm
 
     function dfs1(node: Block) {
+        if (!graph.includes(node)) return
         visited.add(node)
         for (const neighbor of node.children) {
             if (!visited.has(neighbor)) dfs1(neighbor)
@@ -49,6 +50,7 @@ export function get_loops(graph: Block[]) {
     }
 
     function dfs2(node: Block, component: Block[]) {
+        if (!graph.includes(node)) return
         visited.add(node)
         component.push(node)
         for (const neighbor of node.parents) {

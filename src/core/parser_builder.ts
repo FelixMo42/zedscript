@@ -79,7 +79,7 @@ function $build_step(rule: Rule, step: Step, suc: Block, err: Block): Block {
 
             if (step.flag === ",") loop_inner.with("tks.take(\",\");")
 
-            loop.with(`const _temp = ${$build_cond(step.cond)}`)
+            loop.with(`_temp = ${$build_cond(step.cond)}`)
                 .branch(`!_temp`, suc, loop_inner)
     
             node.goes_to(loop)
@@ -175,7 +175,7 @@ function $build_ruleset(target: string) {
 
     // get a list of all local variables used in the function
     const locals = new Set<string>()
-    locals.add("_node").add("_save")
+    locals.add("_node").add("_save").add("_temp")
     for (const rule of rules) {
         rule.filter(rule => rule.name)
             .forEach(rule => locals.add(rule.name!))
@@ -188,21 +188,22 @@ function $build_ruleset(target: string) {
 
     const first_recursive_rule = rules
         .filter(rule => rule[0].cond === target)
+        .reverse()
         .reduce((next, rule) => $build_recursive_rule(rule, recursive_loop_node, next), return_node)
 
     recursive_loop_node.goes_to(first_recursive_rule)
 
     const first_nonrecusive_rule = rules
         .filter(rule => rule[0].cond != target)
+        .reverse()
         .reduce((next, rule) => $build_rule(rule, recursive_loop_node, next), return_node)
 
     const entry_node = new Block()
-        .with(`let ${[...locals.values()].join(",")}`)
         .with(`_save = tks.save()`)
         .goes_to(first_nonrecusive_rule)
 
     // build the function
-    return `function parse_${target}(tks) { ${stackify(entry_node)} }`
+    return `function parse_${target}(tks) { let ${[...locals.values()].join(",")};${stackify(entry_node)} }`
 }
 
 function $build(target: string) {

@@ -1,20 +1,8 @@
 import { Block, get_loops } from "@src/core/graph.ts";
 import assert from "node:assert";
 
-// CURRENT BUG: If there is a loop inside of a loop it can't then sort subgraph for the loop.
-
 function loop_graph(g: Block[]): Block[] {
-    while (true) {
-        const loops = get_loops(g)
-            .sort((a, b) => a.length - b.length)
-
-
-        if (loops.length === 0) return g
-
-        const loop = loops[0]
-        console.log(loops.map(loop => loop.length))
-        // TODO: what if there are nested loops?
-
+    for (const loop of get_loops(g)) {
         // Loooop block!
         const loop_block = new Block()
         loop_block.with("/* loop */")
@@ -27,10 +15,7 @@ function loop_graph(g: Block[]): Block[] {
         // Figure out loop entry point.
         // TODO: make sure there is only one entry point to the loop
         const entry = loop.find((b) => b.parents.some(parent => !loop.includes(parent)))
-        if (!entry) {
-            console.log("E", loop.map(l => l.code))
-            throw new Error("Could not find entry point of loop!")
-        }
+        if (!entry) throw new Error("Could not find entry point of loop!")
         loop_block.parents = entry.parents.filter(p => !loop.includes(p))
         entry.parents = []
 
@@ -65,6 +50,8 @@ function loop_graph(g: Block[]): Block[] {
             loop: sort_graph(loop_graph(loop)).reverse()
         }
     }
+
+    return g
 }
 
 function sort_graph(g: Block[]): Block[] {
@@ -76,11 +63,7 @@ function sort_graph(g: Block[]): Block[] {
     while (g.length > 1) {
         // Find a node who DOMINATES all the remaining nodes.
         const index = g.findIndex(n => g.every(n2 => !n2.children.includes(n)))
-        if (index === -1) {
-            console.log("<", g.map(n => [n.code, n.data?.kind]))
-            console.log(">", graph.map(n => n.code))
-            throw new Error("Failed to find dominator node!")
-        }
+        if (index === -1) throw new Error("Failed to find dominator node!")
 
         // Remove the dominator node from the list, and add it to our new graph.
         graph.push(g[index])
@@ -156,7 +139,6 @@ function build_graph(g: Block[], level=0): string {
     } else if (g[0].children.length === 0) {
         src += "return;"
     } else {
-        console.log(g[0].code, g[0].data, g[0].children.length)
         throw new Error("Invald block targets.")
     }
 
@@ -172,33 +154,5 @@ function get_graph_from_block(block: Block, graph=new Set<Block>()) {
 
 export function stackify(block: Block) {
     const graph = get_graph_from_block(block)
-
-    console.log("======")
-
-    let src = ""
-    src += "LOOPS:" + get_loops(graph).length + "\n"
-    const loop = get_loops(graph).length >= 1 ? get_loops(graph)[0] : []
-    for (const node of graph) {
-        src += "## " + graph.findIndex(n => n === node) + "\n"
-        if (loop.includes(node)) {
-            src += 'LOOP MEMBER\n'
-        }
-        if (node.code.length > 0) src += node.code.join("\n") + "\n"
-        if (node.data?.kind === "BRANCH") {
-            src += `if (${node.data.cond}) ${graph.findIndex(n => n === node.children[0])} else ${graph.findIndex(n => n === node.children[1])}\n`
-        } else {
-            src += `goto ${graph.findIndex(n => n === node.children[0])}\n`
-        }
-    }
-
-    try {
-        const a = build_graph(sort_graph(loop_graph(graph)).reverse())
-
-        return a
-    } catch (_e) {
-        console.error(_e)
-        console.log("E", src)
-    }
-    // 
-    return ""
+    return build_graph(sort_graph(loop_graph(graph)).reverse())
 }
