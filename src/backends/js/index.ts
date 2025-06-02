@@ -1,7 +1,7 @@
 import { ExprNode, FileNode, StatmentNode } from "@out/types.ts";
 import { parse } from "@src/lang/parse.ts";
 
-type Expr = Expr[] | string | number
+export type Expr = Expr[] | string | number
 
 function build(ast: FileNode): Expr[] {
     return ast
@@ -91,7 +91,7 @@ function getListOfLocals(expr: Expr, locals: string[]=[]): string[] {
     return locals
 }
 
-function toJS(expr: Expr): string {
+export function toJS(expr: Expr): string {
     if (typeof expr === "number") {
         return String(expr)
     } else if (typeof expr === "string") {

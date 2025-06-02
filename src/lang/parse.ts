@@ -13,14 +13,11 @@ export const parse = build_parser<FileNode>`
         "}"
 
     func_node =
-        "fn" name:ident "(" params:param_node, ")" return_type:type_node "{"
+        "fn" name:ident "(" params:param_node, ")" return_type:expr_node "{"
             body:statment_node*
         "}"
 
-    param_node = name:ident type:type_node
-
-    type_node = name:ident "<" args:type_node, ">"
-    type_node = name:ident
+    param_node = name:ident type:expr_node
 
     statment_node = :while_node
     statment_node = :return_node

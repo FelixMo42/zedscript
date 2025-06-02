@@ -1,3 +1,5 @@
+import { Expr, toJS } from "@src/backends/js/index.ts";
+
 type BlockData
     = { kind: "BRANCH", cond: string }
     | { kind: "LOOP", loop: Block[] }
@@ -11,8 +13,8 @@ export class Block {
 
     data?: BlockData
 
-    with(line: string) {
-        this.code.push(line)
+    with(line: Expr) {
+        this.code.push(toJS(line))
         return this
     }
 
@@ -30,8 +32,8 @@ export class Block {
         return this.$add_edge(target)
     }
 
-    branch(cond: string, a: Block, b: Block) {
-        this.data = { kind: "BRANCH", cond }
+    branch(cond: Expr, a: Block, b: Block) {
+        this.data = { kind: "BRANCH", cond: toJS(cond) }
         return this.$add_edge(a).$add_edge(b)
     }
 

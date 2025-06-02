@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs"
 import { as_struct, is_array, merge, Type, TYPES, typesToJS, unique } from "@src/core/code_gen.ts";
 import { Block } from "@src/core/graph.ts";
 import { stackify } from "@src/core/stackifier.ts";
+import { Expr } from "@src/backends/js/index.ts";
 
 // TYPES //
 
@@ -58,10 +59,10 @@ function $parse_rule(rule: string) {
 
 const UNNEEDED = new Set<string>()
 
-function $build_cond(cond: string) {
-    if (cond.startsWith("\"")) return `tks.take(${cond})`
-    if (["ident", "number", "string"].includes(cond)) return `tks.take("<${cond}>")`
-    return `parse_${cond}(tks)`
+function $build_cond(cond: string): Expr {
+    if (cond.startsWith("\"")) return ["tks.take", cond]
+    if (["ident", "number", "string"].includes(cond)) return ["tks.take", `"<${cond}>"`]
+    return [`parse_${cond}`, "tks"]
 }
 
 function $build_step(rule: Rule, step: Step, suc: Block, err: Block): Block {
@@ -69,30 +70,30 @@ function $build_step(rule: Rule, step: Step, suc: Block, err: Block): Block {
 
     if (step.name) {
         if (step.flag === "*" || step.flag === ",") {
-            node.with(`${step.name} = []`)
+            node.with(["@set", step.name, ["@array"]])
 
             const loop = new Block()
 
             const loop_inner = new Block()
-                .with(`${step.name}.push(_temp)`)
+                .with([`${step.name}.push`, "_temp"])
                 .goes_to(loop)
 
-            if (step.flag === ",") loop_inner.with("tks.take(\",\");")
+            if (step.flag === ",") loop_inner.with(["tks.take", `","`])
 
-            loop.with(`_temp = ${$build_cond(step.cond)}`)
+            loop.with(["@set", "_temp", $build_cond(step.cond)])
                 .branch(`!_temp`, suc, loop_inner)
     
             node.goes_to(loop)
         } else if (is_array(TYPES.get(rule.name)!)) {
-            node.with(`${step.name} = ${$build_cond(step.cond)}`)
+            node.with(["@set", step.name, $build_cond(step.cond)])
                 .branch(step.name,
                     new Block()
-                        .with(`${step.name} = [${step.name}]`)
+                        .with(["@set", step.name, ["@array", step.name]])
                         .goes_to(suc),
                     err
                 )
         } else {
-            node.with(`${step.name} = ${$build_cond(step.cond)}`)
+            node.with(["@set", step.name, $build_cond(step.cond)])
                 .branch(step.name, suc, err)
         }
     } else {
@@ -107,7 +108,7 @@ function $build_rule(rule: Rule, suc: Block, err: Block): Block {
 
     // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
-        return_node.with(`_node = $out`)
+        return_node.with(["@set", "_node", "$out"])
     } else {
         const defined_fields = rule
             .filter(r => r.name != undefined)
@@ -119,10 +120,10 @@ function $build_rule(rule: Rule, suc: Block, err: Block): Block {
 
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
-        return_node.with(`_node = { kind: "${rule.name.toUpperCase()}", ${fields} }`)
+        return_node.with(["@set", "_node", `{ kind: "${rule.name.toUpperCase()}", ${fields} }`])
     }
 
-    const fail = new Block().with("tks.load(_save);").goes_to(err)
+    const fail = new Block().with(["tks.load", "_save"]).goes_to(err)
 
     // rule matching steps
     return rule.reduceRight((next, step) => $build_step(rule, step, next, fail), return_node)
@@ -133,7 +134,7 @@ function $build_recursive_rule(rule: Rule, suc: Block, err: Block): Block {
 
     // what should this rule return?
     if (rule.find(r => r.name === "$out")) {
-        return_node.with(`_node = $out`)
+        return_node.with(["@set", "_node", "$out"])
     } else {
         const defined_fields = rule
             .filter(r => r.name != undefined)
@@ -147,10 +148,10 @@ function $build_recursive_rule(rule: Rule, suc: Block, err: Block): Block {
 
         const fields = [...defined_fields, ...undefined_fields].join(",")
 
-        return_node.with(`_node = { kind: "${rule.name.toUpperCase()}", ${fields} }`)
+        return_node.with(["@set", "_node", `{ kind: "${rule.name.toUpperCase()}", ${fields} }`])
     }
 
-    const fail = new Block().with("tks.load(_save);").goes_to(err)
+    const fail = new Block().with(["tks.load", "_save"]).goes_to(err)
 
     return rule
         .slice(1)
@@ -184,7 +185,7 @@ function $build_ruleset(target: string) {
     // build controle flow graph
     const return_node = new Block().ret(`_node`)
 
-    const recursive_loop_node = new Block().with(`_save = tks.save()`)
+    const recursive_loop_node = new Block().with(["@set", "_save", "tks.save()"])
 
     const first_recursive_rule = rules
         .filter(rule => rule[0].cond === target)
@@ -199,7 +200,7 @@ function $build_ruleset(target: string) {
         .reduce((next, rule) => $build_rule(rule, recursive_loop_node, next), return_node)
 
     const entry_node = new Block()
-        .with(`_save = tks.save()`)
+        .with(["@set", "_save", "tks.save()"])
         .goes_to(first_nonrecusive_rule)
 
     // build the function

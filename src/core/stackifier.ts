@@ -1,5 +1,4 @@
-import { Block, get_loops } from "@src/core/graph.ts";
-import assert from "node:assert";
+import { Block, get_loops } from "@src/core/graph.ts"
 
 function loop_graph(graph: Block[]): Block[] {
     for (const loop of get_loops(graph)) {
@@ -43,7 +42,7 @@ function loop_graph(graph: Block[]): Block[] {
         // Sort the subgraph.
         loop_block.data = {
             kind: "LOOP",
-            loop: sort_graph(loop_graph(loop)).reverse()
+            loop: sort_graph(loop_graph(loop))
         }
     }
 
@@ -56,7 +55,7 @@ function sort_graph(g: Block[]): Block[] {
 
     const graph = []
 
-    while (g.length > 1) {
+    while (g.length > 0) {
         // Find a node who DOMINATES all the remaining nodes.
         const index = g.findIndex(n => g.every(n2 => !n2.children.includes(n)))
         if (index === -1) throw new Error("Failed to find dominator node!")
@@ -66,14 +65,11 @@ function sort_graph(g: Block[]): Block[] {
         g.splice(index, 1)
     }
 
-    // Add in the trailing node.
-    graph.push(g[0])
-
-    return graph
+    // Relooping the graph requires it in reverse so order, so such we do.
+    return graph.reverse()
 }
 
-const gotos = new Map<Block, string>
-function build_graph(g: Block[], level=0): string {
+function build_graph(g: Block[], level=0, goto=new Map<Block, string>): string {
     // GOAL: Take a looped & sorted controle flow graph and turn it into code.
 
     // The scope level increases when we wrap the node, so this label
@@ -86,22 +82,20 @@ function build_graph(g: Block[], level=0): string {
     // Add code to go the target node
     if (g[0].data?.kind === "LOOP") {
         // In a loop to target the entry point we need to continue, not break.
-        gotos.set(g[0], `continue ${label}`)
+        goto.set(g[0], `continue ${label}`)
 
         // Wrap the loop in a loop. This is why multiple entry points
         // loops don't work with this algorithm, nor any relooping algorithm.
-        src += `${label}: while (1) {`
-        src += build_graph(g[0].data.loop, level + 1)
-        src += `}`
-    } else if (g[0].data?.kind === "BRANCH") {
-        assert(g[0].children.length === 2, "!2 children for branch block!")
-
-        src += `if (${g[0].data.cond}) {${gotos.get(g[0].children[0])}}`
-        src += gotos.get(g[0].children[1])
+        src += `${label}: while (1) {${
+            build_graph(g[0].data.loop, level + 1, goto)
+        }}`
+    } else if (g[0].data?.kind === "BRANCH" && g[0].children.length === 2) {
+        src += `if (${g[0].data.cond}) {${goto.get(g[0].children[0])}}`
+        src += goto.get(g[0].children[1])
     } else if (g[0].data?.kind === "RETURN") {
         src += `return ${g[0].data?.value};`
     } else if (g[0].children.length === 1) {
-        src += gotos.get(g[0].children[0])
+        src += goto.get(g[0].children[0])
     } else {
         throw new Error("Invald block targets.")
     }
@@ -111,22 +105,19 @@ function build_graph(g: Block[], level=0): string {
         if (g[0].parents.length === 1) {
             // If we only have one parent then go to this code, we just need to
             // paste it in directly. 
-            gotos.set(g[0], src)
+            goto.set(g[0], src)
 
             // We didn't use the label, so we don't need to increase our level.
-            return build_graph(g.slice(1), level)
+            return build_graph(g.slice(1), level, goto)
         } else {
             // We are wraping the upper blocks in a while loop, so to go to this
             // node they need to break out it.
-            gotos.set(g[0], `break ${label}`)
+            goto.set(g[0], `break ${label}`)
 
             // Wrap upper nodes in a while loop, and increase the scope level.
-            return [
-                `${label}: do {`,
-                build_graph(g.slice(1), level + 1),
-                `} while (0);`,
-                src,
-            ].join("")
+            return `${label}: do {${
+                build_graph(g.slice(1), level + 1, goto)
+            }} while (0); ${src}`
         }
     } else {
         return src
@@ -142,5 +133,5 @@ function get_graph_from_block(block: Block, graph=new Set<Block>()) {
 
 export function stackify(block: Block) {
     const graph = get_graph_from_block(block)
-    return build_graph(sort_graph(loop_graph(graph)).reverse())
+    return build_graph(sort_graph(loop_graph(graph)))
 }
