@@ -102,6 +102,8 @@ export function toJS(expr: Expr): string {
 
     if (func === "@def") {
         return `function ${toJS(params[0])}(${(params[1] as Array<string>).join(", ")}) {${getListOfLocals(expr).map(local => `let ${local};`).join("")}${params.slice(2).map(toJS).join(";")}}`
+    } else if (func === "@string") {
+        return `"${params[0]}"`
     } else if (func === "@while") {
         return `while (${toJS(params[0])}) {${params.slice(1).map(toJS).join(";")}}`
     } else if (func === "@if") {
@@ -119,7 +121,9 @@ export function toJS(expr: Expr): string {
     } else if (func === "@ternary") {
         return `(${toJS(params[0])} ? ${toJS(params[1])} : ${toJS(params[2])})`
     } else if (func === "@struct") {
-        return `{ ${(params as Array<[string, Expr]>).map(([key, val]) => `${key}:${val}`).join(",")} }`
+        return `{ ${(params as Array<[string, Expr]>).map(([key, val]) => `${key}:${toJS(val)}`).join(",")} }`
+    } else if (func === "not") {
+        return `!${params[0]}`
     }
 
     if (typeof func === "string" && func.startsWith("@")) {
