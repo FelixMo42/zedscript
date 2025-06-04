@@ -133,7 +133,7 @@ function get_graph_from_block(block: Block, graph=new Set<Block>()) {
     return graph.values().toArray()
 }
 
-export function stackify(block: Block) {
+export function stackify(block: Block): Expr {
     const graph = get_graph_from_block(block)
     return build_graph(sort_graph(loop_graph(graph)))
 }

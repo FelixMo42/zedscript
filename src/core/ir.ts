@@ -2,6 +2,7 @@ import { Block } from "@src/core/graph.ts";
 import { toJS } from "@src/backends/js/index.ts";
 import { stackify } from "@src/core/stackifier.ts";
 import { FileNode } from "@out/types.ts";
+import { remove_unused_vars } from "@src/core/remove_unused_vars.ts";
 
 export type Expr = Expr[] | string | number
 
@@ -17,7 +18,10 @@ export class FuncDef {
     }
 
     toJS() {
-        return toJS(["@def", this.name, this.params, stackify(this.body)])
+        let body = stackify(this.body)
+            body = remove_unused_vars(body)
+
+        return toJS(["@def", this.name, this.params, body])
     }
 }
 

@@ -1,5 +1,6 @@
 import { parse } from "@src/lang/parse.ts";
 import { build, Expr } from "@src/core/ir.ts";
+import { get_locals } from "@src/core/remove_unused_vars.ts";
 
 export function stdlib() {
     return [
@@ -19,24 +20,6 @@ export function exec(src: string, ...params: (string | number)[]) {
     }
 }
 
-function getListOfLocals(expr: Expr, locals: string[]=[]): string[] {
-    if (!Array.isArray(expr)) return locals
-
-    if (expr[0] == "@set") {
-        if (!locals.includes(expr[1] as string)) {
-            locals.push(expr[1] as string)
-        }
-    }
-
-    expr.forEach((part) => getListOfLocals(part, locals))
-
-    if (expr[0] == "@def") {
-        locals = locals.filter(local => !(expr[2] as string[]).includes(local))
-    }
-
-    return locals
-}
-
 export function toJS(expr: Expr): string {
     if (typeof expr === "number") {
         return String(expr)
@@ -47,7 +30,7 @@ export function toJS(expr: Expr): string {
     const [func, ...params] = expr
 
     if (func === "@def") {
-        return `function ${toJS(params[0])}(${(params[1] as Array<string>).join(", ")}) {${getListOfLocals(expr).map(local => `let ${local};`).join("")}${params[2].map(toJS).join(";")}}`
+        return `function ${toJS(params[0])}(${(params[1] as Array<string>).join(", ")}) {${get_locals(expr).map(local => `let ${local};`).join("")}${params[2].map(toJS).join(";")}}`
     } else if (func === "@string") {
         return `"${params[0]}"`
     } else if (func === "@while") {
@@ -63,7 +46,17 @@ export function toJS(expr: Expr): string {
             return `do {${params[0].map(toJS).join(";")}} while (0)`
         }
     } else if (func === "@if") {
-        return `if (${toJS(params[0])}) {${(params[1] as Array<Expr>).map(toJS).join(";")}} else {${(params[2] as Array<Expr>).map(toJS).join(";")}}`
+        if (params[2] && params[2].length > 0) {
+            return `if (${toJS(params[0])}) {${
+                (params[1] as Array<Expr>).map(toJS).join(";")
+            }} else {${
+                (params[2] as Array<Expr>).map(toJS).join(";")
+            }}`
+        } else {
+            return `if (${toJS(params[0])}) {${
+                (params[1] as Array<Expr>).map(toJS).join(";")
+            }}`
+        }
     } else if (func === "@return") {
         return `return ${toJS(params[0])}`
     } else if (func === "@set") {
