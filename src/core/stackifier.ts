@@ -1,4 +1,5 @@
 import { Block, get_loops } from "@src/core/graph.ts"
+import { Expr } from "@src/core/ir.ts";
 
 function loop_graph(graph: Block[]): Block[] {
     for (const loop of get_loops(graph)) {
@@ -69,7 +70,7 @@ function sort_graph(g: Block[]): Block[] {
     return graph.reverse()
 }
 
-function build_graph(g: Block[], level=0, goto=new Map<Block, string>): string {
+function build_graph(g: Block[], level=0, gotos=new Map<Block, Expr[]>): Expr[] {
     // GOAL: Take a looped & sorted controle flow graph and turn it into code.
 
     // The scope level increases when we wrap the node, so this label
@@ -77,25 +78,25 @@ function build_graph(g: Block[], level=0, goto=new Map<Block, string>): string {
     const label = `l${level}`
 
     // Add the code
-    let src = g[0].code.map(line => line + ";").join("")
+    const src = [...g[0].code] as Expr[]
 
     // Add code to go the target node
     if (g[0].data?.kind === "LOOP") {
         // In a loop to target the entry point we need to continue, not break.
-        goto.set(g[0], `continue ${label}`)
+        gotos.set(g[0], [["continue", label]])
 
         // Wrap the loop in a loop. This is why multiple entry points
         // loops don't work with this algorithm, nor any relooping algorithm.
-        src += `${label}: while (1) {${
-            build_graph(g[0].data.loop, level + 1, goto)
-        }}`
+        src.push([ "@while", "1",
+            build_graph(g[0].data.loop, level + 1, gotos),
+        label ])
     } else if (g[0].data?.kind === "BRANCH" && g[0].children.length === 2) {
-        src += `if (${g[0].data.cond}) {${goto.get(g[0].children[0])}}`
-        src += goto.get(g[0].children[1])
-    } else if (g[0].data?.kind === "RETURN") {
-        src += `return ${g[0].data?.value};`
+        src.push(["@if", g[0].data.cond, gotos.get(g[0].children[0])!, []])
+        src.push(...gotos.get(g[0].children[1])!)
     } else if (g[0].children.length === 1) {
-        src += goto.get(g[0].children[0])
+        src.push(...gotos.get(g[0].children[0])!)
+    } else if (g[0].data?.kind === "RETURN") {
+        src.push(["@return", g[0].data?.value])
     } else {
         throw new Error("Invald block targets.")
     }
@@ -105,19 +106,20 @@ function build_graph(g: Block[], level=0, goto=new Map<Block, string>): string {
         if (g[0].parents.length === 1) {
             // If we only have one parent then go to this code, we just need to
             // paste it in directly. 
-            goto.set(g[0], src)
+            gotos.set(g[0], src)
 
             // We didn't use the label, so we don't need to increase our level.
-            return build_graph(g.slice(1), level, goto)
+            return build_graph(g.slice(1), level, gotos)
         } else {
             // We are wraping the upper blocks in a while loop, so to go to this
             // node they need to break out it.
-            goto.set(g[0], `break ${label}`)
+            gotos.set(g[0], [["break", label]])
 
             // Wrap upper nodes in a while loop, and increase the scope level.
-            return `${label}: do {${
-                build_graph(g.slice(1), level + 1, goto)
-            }} while (0); ${src}`
+            return [
+                ["@block", build_graph(g.slice(1), level + 1, gotos), label],
+                ...src
+            ]
         }
     } else {
         return src

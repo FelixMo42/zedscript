@@ -2,8 +2,7 @@ import { lexer } from "@src/lang/lexer.ts"
 import { writeFileSync } from "node:fs"
 import { as_struct, is_array, merge, Type, TYPES, typesToJS, unique } from "@src/core/code_gen.ts";
 import { Block } from "@src/core/graph.ts";
-import { stackify } from "@src/core/stackifier.ts";
-import { Expr } from "@src/backends/js/index.ts";
+import { Expr, FuncDef } from "@src/core/ir.ts";
 
 // TYPES //
 
@@ -140,9 +139,9 @@ function $build_recursive_rule(rule: Rule, suc: Block, err: Block): Block {
     } else {
         const defined_fields = rule
             .filter(r => r.name != undefined)
-            .map(r => r.name) as string[]
+            .map(r => [r.name, r.name]) as [string, Expr][]
 
-        defined_fields[0] = `${rule[0].name}:_node`
+        defined_fields[0] = [rule[0].name!, "_node"]
 
         const undefined_fields = as_struct(TYPES.get(rule.name)!)[1]
             .filter(([k, v]) => !rule.some(step => step.name === k) && is_array(v))
@@ -178,14 +177,6 @@ function $build_ruleset(target: string) {
             return rule
         })
 
-    // get a list of all local variables used in the function
-    const locals = new Set<string>()
-    locals.add("_node").add("_save").add("_temp")
-    for (const rule of rules) {
-        rule.filter(rule => rule.name)
-            .forEach(rule => locals.add(rule.name!))
-    }
-
     // build controle flow graph
     const return_node = new Block().ret(`_node`)
 
@@ -208,21 +199,26 @@ function $build_ruleset(target: string) {
         .goes_to(first_nonrecusive_rule)
 
     // build the function
-    return `function parse_${target}(tks) { let ${[...locals.values()].join(",")};${stackify(entry_node)} }`
+    return new FuncDef(`parse_${target}`, ["tks"], entry_node)
 }
 
 function $build(target: string) {
-    const parts = new Map<string, string>()
+    const funcs = new Map<string, FuncDef>()
     
     for (const rule of RULES) {
-        if (!parts.has(rule.name)) parts.set(rule.name, $build_ruleset(rule.name))
+        if (!funcs.has(rule.name)) funcs.set(rule.name, $build_ruleset(rule.name))
     }
 
     for (const unneeded of UNNEEDED.values()) {
-        parts.delete(unneeded)
+        funcs.delete(unneeded)
     }
 
-    const src = parts.values().toArray().join("")
+    const src = funcs
+        .values()
+        .map(func => func.toJS())
+        .toArray()
+        .join("")
+
     try {
         writeFileSync("./out/parser.js", src.replaceAll(";", "\n"))
     } catch {

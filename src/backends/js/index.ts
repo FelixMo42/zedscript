@@ -1,59 +1,5 @@
-import { ExprNode, FileNode, StatmentNode } from "@out/types.ts";
 import { parse } from "@src/lang/parse.ts";
-
-export type Expr = Expr[] | string | number
-
-function build(ast: FileNode): Expr[] {
-    return ast
-        .items
-        .filter(item => item.kind === "FUNC_NODE")
-        .map((func) => ["@def", func.name,
-            func.params.map(param => param.name),
-            ...func.body.map(buildStatment)
-        ])
-}
-
-function buildStatment(s: StatmentNode): Expr {
-    if (s.kind === "ASSIGNMENT_NODE") {
-        return ["@set", buildExpr(s.name), buildExpr(s.value)]
-    } else if (s.kind === "RETURN_NODE") {
-        return ["@return", buildExpr(s.value)]
-    } else if (s.kind === "DISCARD_NODE") {
-        return buildExpr(s.value)
-    } else if (s.kind === "IF_NODE") {
-        return ["@if", buildExpr(s.cond), s.a.map(buildStatment), s.b.map(buildStatment)]
-    } else if (s.kind === "WHILE_NODE") {
-        return ["@while", buildExpr(s.cond), ...s.body.map(buildStatment)]
-    }
-
-    throw new Error("BUILD_STATMENT?!?")
-}
-
-function buildExpr(s: ExprNode): Expr {
-    if (s.kind === "NUMBER_NODE") {
-        return Number(s.value)
-    } else if ("op" in s) {
-        return [`@${s.op}`, buildExpr(s.a), buildExpr(s.b)]
-    } else if (s.kind === "IDENT_NODE") {
-        return s.value
-    } else if (s.kind === "ARRAY_NODE") {
-        return ["@array", ...s.items.map(buildExpr)]
-    } else if (s.kind === "CALL_NODE") {
-        return [buildExpr(s.func), ...s.args.map(buildExpr)]
-    } else if (s.kind === "FIELD_NODE") {
-        return ["@field", buildExpr(s.value), s.field]
-    } else if (s.kind === "INDEX_NODE") {
-        return ["@index", buildExpr(s.value), buildExpr(s.index)]
-    } else if (s.kind === "OBJECT_NODE") {
-        return ["@struct", ...s.items.map(item => [item.name!, buildExpr(item.value)])]
-    } else if (s.kind === "STRING_NODE") {
-        return s.value
-    } else if (s.kind === "TERNARY_NODE") {
-        return ["@ternary", buildExpr(s.cond), buildExpr(s.a), buildExpr(s.b)]
-    }
-
-    throw new Error("EXPR_STATMENT?!?: " + JSON.stringify(s, null, 2))
-}
+import { build, Expr } from "@src/core/ir.ts";
 
 export function stdlib() {
     return [
@@ -101,11 +47,21 @@ export function toJS(expr: Expr): string {
     const [func, ...params] = expr
 
     if (func === "@def") {
-        return `function ${toJS(params[0])}(${(params[1] as Array<string>).join(", ")}) {${getListOfLocals(expr).map(local => `let ${local};`).join("")}${params.slice(2).map(toJS).join(";")}}`
+        return `function ${toJS(params[0])}(${(params[1] as Array<string>).join(", ")}) {${getListOfLocals(expr).map(local => `let ${local};`).join("")}${params[2].map(toJS).join(";")}}`
     } else if (func === "@string") {
         return `"${params[0]}"`
     } else if (func === "@while") {
-        return `while (${toJS(params[0])}) {${params.slice(1).map(toJS).join(";")}}`
+        if (params[2]) {
+            return `${params[2]}: while (${toJS(params[0])}) {${params[1].map(toJS).join(";")}}`
+        } else {
+            return `while (${toJS(params[0])}) {${params[1].map(toJS).join(";")}}`
+        }
+    } else if (func === "@block") {
+        if (params[1]) {
+            return `${params[1]}: do {${params[0].map(toJS).join(";")}} while (0)`
+        } else {
+            return `do {${params[0].map(toJS).join(";")}} while (0)`
+        }
     } else if (func === "@if") {
         return `if (${toJS(params[0])}) {${(params[1] as Array<Expr>).map(toJS).join(";")}} else {${(params[2] as Array<Expr>).map(toJS).join(";")}}`
     } else if (func === "@return") {
@@ -124,6 +80,10 @@ export function toJS(expr: Expr): string {
         return `{ ${(params as Array<[string, Expr]>).map(([key, val]) => `${key}:${toJS(val)}`).join(",")} }`
     } else if (func === "not") {
         return `!${params[0]}`
+    }  else if (func === "continue") {
+        return `continue ${params[0] ?? ""}`
+    }  else if (func === "break") {
+        return `break ${params[0] ?? ""}`
     }
 
     if (typeof func === "string" && func.startsWith("@")) {

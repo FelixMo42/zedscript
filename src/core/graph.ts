@@ -1,4 +1,5 @@
-import { Expr, toJS } from "@src/backends/js/index.ts";
+import { toJS } from "@src/backends/js/index.ts";
+import { Expr } from "@src/core/ir.ts";
 
 type BlockData
     = { kind: "BRANCH", cond: string }
@@ -6,7 +7,7 @@ type BlockData
     | { kind: "RETURN", value: string }
 
 export class Block {
-    code: string[] = []
+    code: Expr[] = []
 
     children: Block[] = []
     parents: Block[] = []
@@ -14,7 +15,7 @@ export class Block {
     data?: BlockData
 
     with(line: Expr) {
-        this.code.push(toJS(line))
+        this.code.push(line)
         return this
     }
 
