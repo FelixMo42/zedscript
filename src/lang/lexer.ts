@@ -1,53 +1,39 @@
-export interface TokenStream {
-    take(match: string): string | undefined
-    peak(match?: string): string | undefined
-    save(): number
-    load(i: number): void
-    logs(): void
-}
-
-export function lexer(src: string): TokenStream {
+export function lexer(src: string) {
     const tokens = src
         .matchAll(/\"[^\"]*\"|[\w]+|<=|>=|==|\*\*|[^\s\w]/g)
         .toArray()
         .map(match => match[0])
 
-    let index = 0
-
     const self = {
-        logs() {
-            console.log(tokens)
-        },
+        tokens,
+        index: 0,
         take(match: string) {
             const value = self.peak(match)
-            if (value != undefined) index++
+            if (value != undefined) self.index++
             return value
         },
         peak(match: string) {
             if (!match) {
-                return tokens[index]
+                return tokens[self.index]
             } else if (match === "<string>") {
-                if (tokens[index].startsWith("\"")) {
-                    const len = tokens[index].length
-                    return tokens[index].substring(1, len - 1)
+                if (tokens[self.index].startsWith("\"")) {
+                    const len = tokens[self.index].length
+                    return tokens[self.index].substring(1, len - 1)
                 }
             } else if (match === "<ident>") {
-                if (isIdent(tokens[index])) {
-                    return tokens[index]
+                if (isIdent(tokens[self.index])) {
+                    return tokens[self.index]
                 }
             } else if (match === "<number>") {
-                if (isNumeric(tokens[index])) {
-                    return tokens[index]
+                if (isNumeric(tokens[self.index])) {
+                    return tokens[self.index]
                 }
-            } else if (tokens[index] == match) {
-                return tokens[index]
+            } else if (tokens[self.index] == match) {
+                return tokens[self.index]
             }
         },
-        save() {
-            return index
-        },
         load(i: number) {
-            index = i
+            self.index = i
         }
     }
 

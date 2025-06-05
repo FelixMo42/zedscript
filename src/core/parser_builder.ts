@@ -180,7 +180,7 @@ function $build_ruleset(target: string) {
     // build controle flow graph
     const return_node = new Block().ret(`_node`)
 
-    const recursive_loop_node = new Block().with(["@set", "_save", [["@field", "tks", "save"]]])
+    const recursive_loop_node = new Block().with(["@set", "_save", ["@field", "tks", "index"]])
 
     const first_recursive_rule = rules
         .filter(rule => rule[0].cond === target)
@@ -195,7 +195,7 @@ function $build_ruleset(target: string) {
         .reduce((next, rule) => $build_rule(rule, recursive_loop_node, next), return_node)
 
     const entry_node = new Block()
-        .with(["@set", "_save", [["@field", "tks", "save"]]])
+        .with(["@set", "_save", ["@field", "tks", "index"]])
         .goes_to(first_nonrecusive_rule)
 
     // build the function
