@@ -1,4 +1,4 @@
-import { lexer } from "@src/lang/lexer.ts"
+import { lexer } from "@lib/parser/lexer.ts"
 import { writeFileSync } from "node:fs"
 import { as_struct, is_array, merge, Type, TYPES, typesToJS, unique } from "@src/core/code_gen.ts";
 import { Block } from "@src/core/graph.ts";

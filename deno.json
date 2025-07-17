@@ -1,7 +1,8 @@
 {
   "imports": {
     "@src/": "./src/",
-    "@out/": "./out/"
+    "@out/": "./out/",
+    "@lib/": "./lib/"
   },
   "tasks": {
     "start": "deno run --allow-all src/main.ts",

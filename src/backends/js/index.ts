@@ -1,4 +1,4 @@
-import { parse } from "@src/lang/parse.ts";
+import { parse } from "@lib/parser/lang/zed.ts";
 import { build, Expr } from "@src/core/ir.ts";
 import { get_locals } from "@src/core/remove_unused_vars.ts";
 

@@ -1,4 +1,4 @@
-import { build_parser } from "@src/core/parser_builder.ts";
+import { build_parser } from "@lib/parser/builder.ts";
 import { FileNode } from "@out/types.ts";
 
 export const parse = build_parser<FileNode>`

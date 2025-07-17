@@ -1,7 +1,12 @@
-import { exec } from "@src/backends/js/index.ts"
+import { parse } from "@lib/parser/lang/zed.ts";
+import { build } from "@src/core/ir.ts";
 
 async function main() {
-    console.log(exec(await Deno.readTextFile("./test.zed")))
+    const src = await Deno.readTextFile("./test.zed")
+    const ast = parse(src)
+    const wat = build(ast)
+
+    console.log(wat)
 }
 
 main()
