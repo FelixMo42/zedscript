@@ -20,8 +20,6 @@ class StdLib {
         value: string,
     }>()
 
-    current_block = 0
-
     fn(
         name: string,
         return_type: Type | ((args: Type[]) => Type),
@@ -92,7 +90,35 @@ std
 .fn("<=", bool, (f, a) => `${to_wat_args(f, a)} f64.le`)
 .fn("!=", bool, (f, a) => `${to_wat_args(f, a)} f64.ne`)
 
-.fn("=", none, (f, a) => `${to_wat_args(f, a.slice(1))} local.set $${a[0]}`)
+.fn("=", none, (f, a) => {
+    if (typeof a[0] === "string" && f.locals.has(a[0])) {
+        return `${to_wat_args(f, a.slice(1))} local.set $${a[0]}`
+    }
+
+    if (Array.isArray(a[0])) {
+        const struct = get_type(f, a[0][0])
+        const field = a[0][1]
+
+        assert(typeof field === "object" && !Array.isArray(field) && field.type.kind === "str")
+        assert(struct.kind == "struct")
+
+        let target_offset = 0
+        for (const [name, type] of Object.entries(struct.fields)) {
+            if (name === field.value as string) {
+                break
+            } else {
+                target_offset += size_of(type)
+            }
+        }
+
+        const ptr = `${to_wat(f, a[0][0])} i32.const ${target_offset} i32.add`
+        const value_type = type_to_wasm(struct.fields[field.value as string])
+
+        return `${ptr} ${to_wat(f, a[1])} ${value_type}.store`
+    }
+
+    throw new Error(`Can't set ${JSON.stringify(a[0])}!`)
+})
 .fn("if", ([c, a, b]) => {
     assert_type_eq(c, bool, `If cond must be a bool, got ${c.kind}!`)
     if (b === undefined) {
@@ -123,7 +149,12 @@ std
     return `f64.const ${size_of(t[0].type)}`
 })
 
-// .fn("vec", vec(2, f64), () => ``)
+// .fn("struct", (t) => ({
+//     kind: "struct",
+//     fields: Object.fromEntries(t.map([name, type]) => {
+
+//     })
+// }), () => ``)
 
 .fn("deref", i32, (f, a) => to_wat_args(f, a))
 .fn("asref", ([_a, b]) => {
@@ -184,7 +215,7 @@ function to_wat(f: FuncInstance, expr: Expr): string {
     const func_type = get_type(f, func)
 
     if (func_type.kind === "struct") {
-        const [field, value] = args
+        const [field] = args
 
         assert(typeof field === "object" && !Array.isArray(field) && field.type.kind === "str")
 
@@ -202,11 +233,7 @@ function to_wat(f: FuncInstance, expr: Expr): string {
 
         const value_type = type_to_wasm(func_type.fields[field.value as string])
 
-        if (value) {
-            return `${ptr} ${to_wat(f, value)} ${value_type}.store`
-        } else {
-            return `${ptr} ${value_type}.load`
-        }
+        return `${ptr} ${value_type}.load`
     }
 
     throw new Error(`Can't call ${e}!`)
@@ -241,12 +268,8 @@ function get_type(f: FuncInstance, e: Expr): Type {
     const obj = get_type(f, func)
 
     if (obj.kind === "struct") {
-        const [field, value] = args
-
+        const [field] = args
         assert(typeof field === "object" && !Array.isArray(field) && field.type.kind === "str")
-
-        if (value) return none
-
         return obj.fields[field.value as string]
     }
 
@@ -258,7 +281,8 @@ function get_locals(f: FuncInstance, expr=f.parent.body) {
     if (Array.isArray(expr)) {
         if (expr[0] === "=") {
             if (typeof expr[1] !== 'string') {
-                throw new Error("unimplemented")
+                assert_type_eq(get_type(f, expr[1]), get_type(f, expr[2]))
+                return
             }
 
             const t = get_type(f, expr[2])
@@ -268,7 +292,6 @@ function get_locals(f: FuncInstance, expr=f.parent.body) {
             } else {
                 f.locals.set(expr[1], t)
             }
-
         }
 
         expr.forEach(c => get_locals(f, c))
@@ -488,7 +511,7 @@ class Module {
 
 async function main() {
     const module = new Module()
-        .add_file(await readFile("./test.zs", "utf-8"))
+        .add_file(await readFile("./src/test.zs", "utf-8"))
 
     console.log(module.to_wat())
 }

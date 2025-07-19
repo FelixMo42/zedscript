@@ -59,20 +59,30 @@
     (return b)
 )
 
+(fn mag (vec)
+    (return (sqrt (+
+        (* (vec :x) (vec :x))
+        (* (vec :y) (vec :y))
+    )))
+)
+
 (fn main ()
     ; The goal of this function is to test 
     ; a bunch of diffrent stuff, then return 42
 
     ; test 1: recussion + loops!
+    ; -> 8 + 8
     (= a (+ (fib 6) (fast_fib 6)))
 
     ; test 2: structs!
+    ; -> +5
     (= vec (new vec2f64))
-    (vec :x 3)
-    (vec :y 5)
-    (= a (+ a (+ (vec :x) (vec :y))))
+    (= (vec :x) 3)
+    (= (vec :y) 4)
+    (= a (+ a (mag vec)))
 
     ; test 3: boolean logic!
-    (= f1 (+ a (make_odd 16)))
+    (= f1 (+ a (make_even 20)))
+
     (return (make_even f1))
 )
