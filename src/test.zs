@@ -3,6 +3,13 @@
     :y f64
 )
 
+(fn vec2 (type)
+    (return (struct 
+        :x type
+        :y type
+    ))
+)
+
 (fn new (type)
     ; allocate the memory for the struct 
     (= ptr (i32.load 0i32))
@@ -76,7 +83,7 @@
 
     ; test 2: structs!
     ; -> +5
-    (= vec (new vec2f64))
+    (= vec (new (vec2 f64)))
     (= (vec :x) 3)
     (= (vec :y) 4)
     (= a (+ a (mag vec)))

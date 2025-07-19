@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { readFile } from "node:fs/promises";
-import { assert_is_number, assert_type_eq, bool, const_types, f32, f64, format_type, i32, i64, none, size_of, str, type, Type, type_of, type_to_wasm, unknown } from "./types.ts";
+import { assert_is_number, assert_type_eq, bool, const_types, f32, f64, format_type, i32, i64, is_imaginary, none, size_of, str, type, Type, type_of, type_to_wasm, unknown } from "./types.ts";
 import { e } from "./parser.ts";
 import { isDeepStrictEqual } from "node:util";
 
@@ -25,7 +25,6 @@ class StdLib {
         return_type: Type | ((args: Type[]) => Type),
         body: (f: FuncInstance, a: Expr[], t: Type[]) => string,
     ) {
-
         this.funcs.set(name, {
             name,
             return_type: (typeof return_type === "function")
@@ -51,7 +50,7 @@ class StdLib {
 const std = new StdLib()
 
 function opt([a, b]: Type[]) {
-    assert_type_eq(a, b, `Attempting to do ops ${a.kind} & ${b.kind}!`)
+    assert_type_eq(a, b, `Attempting to do ops ${JSON.stringify(a)} & ${JSON.stringify(b)}!`)
     assert_is_number(a, `You can only do ops on numbers, not ${a.kind}!`)
     return a
 }
@@ -149,16 +148,20 @@ std
     return `f64.const ${size_of(t[0].type)}`
 })
 
-// .fn("struct", (t) => ({
-//     kind: "struct",
-//     fields: Object.fromEntries(t.map([name, type]) => {
-
-//     })
-// }), () => ``)
+.fn("struct", (t) => type_of({
+    kind: "struct",
+    fields: Object.fromEntries(
+        group(t, 2).map(([name, type]) => {
+            assert(type.kind === "type", "!!!")
+            assert(name.kind === "consts" && name.value.type.kind === "str", "!!!")
+            return [name.value.value, type.type]
+        })
+    )
+}), () => ``)
 
 .fn("deref", i32, (f, a) => to_wat_args(f, a))
 .fn("asref", ([_a, b]) => {
-    assert(b.kind === "type")
+    assert(b.kind === "type", `can't cast to ${JSON.stringify(b)}`)
     return b.type
 }, (f, a) => to_wat(f, a[0]))
 
@@ -168,6 +171,20 @@ std
 for (const t of const_types) {
     std.g(t.kind, type_of(t), "")
 }
+
+function group<T>(arr: T[], size: number): T[][] {
+    const groups = []
+
+    for (let i = 0; i < arr.length; i+=size) {
+        const group = []
+        for (let j = 0; j < size; j++) {
+            group.push(arr[i + j])
+        }
+        groups.push(group)
+    }
+
+    return groups
+} 
 
 function to_wat_args(f: FuncInstance, args: Expr[]) {
     return args.map(a => to_wat(f, a)).join(" ")
@@ -201,10 +218,19 @@ function to_wat(f: FuncInstance, expr: Expr): string {
         }
 
         if (f.parent.module.funcs.has(func)) {
+            if (is_imaginary(f.parent.module.funcs.get(func)!.return_type(args
+                    .map(arg => get_type(f, arg))))) {
+                        return to_wat_args(f, args)
+                    }
+
             const call = [
                 func,
                 ...args
                     .map(arg => get_type(f, arg))
+                    .map(type => {
+                        if (type.kind === "consts") return type.value.type
+                        return type
+                    })
                     .map(format_type)
             ].join(":")
 
@@ -240,6 +266,8 @@ function to_wat(f: FuncInstance, expr: Expr): string {
 }
 
 function get_type(f: FuncInstance, e: Expr): Type {    
+    assert(e !== undefined, "!!!")
+
     if (typeof e === "string") {
         if (f.locals.has(e)) {
             return f.locals.get(e)!
@@ -251,7 +279,10 @@ function get_type(f: FuncInstance, e: Expr): Type {
             throw new Error(`Unresolved ident ${e}!`)   
         }
     }
-    if (!Array.isArray(e)) return e.type
+    if (!Array.isArray(e)) return {
+        kind: "consts",
+        value: e
+    }
 
     const [func, ...args] = e
 
@@ -273,7 +304,6 @@ function get_type(f: FuncInstance, e: Expr): Type {
         return obj.fields[field.value as string]
     }
 
-
     throw new Error(`Can't figure out type for ${e}`)
 }
 
@@ -288,7 +318,7 @@ function get_locals(f: FuncInstance, expr=f.parent.body) {
             const t = get_type(f, expr[2])
 
             if (f.locals.has(expr[1])) {
-                assert(f.locals.get(expr[1]) === t, `You can't reset a variable type! Was ${f.locals.get(expr[1])!.kind}, got ${t.kind}`)
+                assert_type_eq(f.locals.get(expr[1])!, t, `You can't reset a variable type! Was ${f.locals.get(expr[1])!.kind}, got ${t.kind}`)
             } else {
                 f.locals.set(expr[1], t)
             }
@@ -344,6 +374,8 @@ class FuncInstance {
     }
 
     to_wat(): string {
+        if (is_imaginary(this.return)) return ""
+
         const name = [
             this.parent.name,
             ...this.params.map(format_type)
@@ -395,6 +427,11 @@ class Func {
     }
 
     return_type(args: Type[]) {
+        args = args.map((type) => {
+            if (type.kind === "consts") return type.value.type
+            return type
+        })
+
         assert(args.length === this.params.length, "Wrong number of arguments!")
     
         for (const version of this.versions) {
@@ -414,7 +451,7 @@ class Func {
     }
 }
 
-type Value = (
+export type Value = (
     | { type: type, value: Type }
     | { type: typeof i32, value: number }
     | { type: typeof i64, value: number }
