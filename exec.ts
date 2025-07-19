@@ -5,7 +5,7 @@ import { exec } from "node:child_process "
 async function main() {
     await run()
     
-    for await (const _event of watch(".", { recursive: true })) {
+    for await (const _event of watch("./src")) {
         await run()
     }
 }
@@ -16,20 +16,21 @@ async function run() {
         process.stdout.write("\x1Bc")
 
         // run the scripts
-        await $("deno run --allow-all lib/wat/main.ts > out/main.wat")
+        await $("deno run --allow-all src/main.ts > out/main.wat")
         await $("wat2wasm out/main.wat -o out/main.wasm")
-        await $("deno run --allow-all lib/wat/test.ts")
+        await $("deno run --allow-all src/test.ts")
     } catch { /* do nothing on error*/ }
 }
 
 function $(command: string) {
     return new Promise((res, rej) =>
         exec(command, (err: number, stdout: string, stderr: string) => {
+            if (stderr) console.error(stderr.trim())
+            if (stdout) console.log(stdout.trim())
+
             if (err) {
-                if (stderr) console.error(stderr.trim())
                 rej(stderr)
             } else {
-                if (stdout) console.log(stdout.trim())
                 res(stdout)
             }
         })
