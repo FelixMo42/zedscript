@@ -4,6 +4,7 @@ import { Context } from "./context.ts";
 export type Type = (
     | ((c: Context, args: AstNode[], area: AstNode) => Type)
     | Atom["type"]
+    | "unknown"
     | "never"
 )
 

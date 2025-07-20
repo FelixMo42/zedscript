@@ -1,6 +1,6 @@
-import { error_handler, is_ast_leaf, parse, err } from ".././lib/parse.ts";
+import { error_handler, parse, err } from ".././lib/parse.ts";
 import { check, Context } from "./context.ts";
-import { as, assert_type_eq, atom, Atom } from "./types.ts";
+import { as, assert_type_eq, atom } from "./types.ts";
 
 function op_module(ctx: Context) {
     // define types
@@ -16,13 +16,13 @@ function op_module(ctx: Context) {
 
             return atom("int", eval(`${a} ${op} ${b}`))
         }))
-        ctx.set_type(op, (c, args, area) => {
+        ctx.set_type(op, (ctx, args, area) => {
             if (args.length != 2) err("invalid num params", area)
 
             const a = ctx.check(args[0])
             const b = ctx.check(args[1])
 
-            return assert_type_eq(c, a, b, area)
+            return assert_type_eq(ctx, a, b, area)
         })
     }
 
@@ -47,82 +47,7 @@ function op_module(ctx: Context) {
     }
 }
 
-function core_module(ctx: Context) {
-    ctx.set_type("#func_def", (ctx, func_def, a) => {
-        const func_ctx = new Context(ctx)
-
-        const [
-            name,
-            params_expr,
-            return_type_expr,
-            ...body
-        ] = func_def
-
-        if (!is_ast_leaf(name)) err("invalid functon name", name)
-        if (is_ast_leaf(params_expr)) err("invalid params", params_expr)
-
-        const params = params_expr.map((param) => {
-            if (is_ast_leaf(param)) err("invalid params", param)
-            if (param.length != 2) err("invalid params", param)
-            const [name, type] = param
-            if (!is_ast_leaf(name)) err("invalid param name", name)
-            assert_type_eq(ctx, func_ctx.check(type), "type", type)
-            func_ctx.set_type(name, as("type", ctx.exec(type)))
-            return { name, type: func_ctx.get_type(name) }
-        })
-
-        func_ctx.check(return_type_expr)
-
-        const return_type = as("type", ctx.exec(return_type_expr))
-
-        func_ctx.set_type("#return", (ctx, args, area) => {
-            if (args.length !== 1) err("== 1 return value", area)
-            assert_type_eq(ctx, return_type, ctx.check(args[0]), area, "incorrect return type")
-            return "never"
-        })
-
-        ctx.set(name, atom("func", (ctx, ...args) => {
-            const exec_ctx = new Context(ctx)
-
-            exec_ctx.set("#return", atom("func", (ctx, a) => {
-                throw new Error("RETURN", { cause: ctx.exec(a) })
-            }))
-
-            args.forEach((arg, i) => {
-                const atom = ctx.exec(arg)
-                assert_type_eq(ctx, params[i].type, atom.type, arg)
-                exec_ctx.set(params[i].name, atom)
-            })
-
-            try {
-                body.forEach(expr => exec_ctx.exec(expr))
-            } catch (e) {
-                const error = e as Error
-
-                if (error.message === "RETURN") {
-                    return error.cause as Atom
-                }
-
-                throw error
-            }
-
-            err("didn't return anything", a)
-        }))
-
-        ctx.set_type(name, (ctx, args, area) => {
-            if (args.length !== params.length) err("wrong number of args", area)
-            // TODO: make sure they are the same!
-            args.forEach(arg => ctx.check(arg))
-            return return_type
-        })
-
-        for (const expr of body) {
-            func_ctx.check(expr)
-        }
-
-        return "func"
-    })
-
+function control_flow_module(ctx: Context) {
     ctx.set("#if", atom("func", (ctx, c, a, b) => {
         if (as("bool", ctx.exec(c))) {
             return ctx.exec(a)
@@ -150,7 +75,7 @@ function main() {
         const src = SOURCE
         const ast = parse(src)
         const _mod = check([
-            core_module,
+            control_flow_module,
             op_module,
             ast
         ])
@@ -161,28 +86,28 @@ function main() {
 }
 
 const SOURCE = `
-(#func_def fib3 ((n int)) int
+(fib3 (#fn ((n int)) int
     (#if (<= n 1) (#return n))
     (#return (+ (fib2 (- n 1)) (fib (- n 2))))
-)
+))
 
-(#func_def fib ((n int)) int
+(fib (#fn ((n int)) int
     (#if (<= n 1) (#return n))
     (#return (+ (fib2 (- n 1)) (fib3 (- n 2))))
-)
+))
 
-(#func_def fib2 ((n int)) int
+(fib2 (#fn ((n int)) int
     (#if (<= n 1) (#return n))
     (#return (+ (fib2 (- n 1)) (fib (- n 2))))
-)
+))
 
-(#func_def maybe_int ((x int)) type
-    (#return (#if (== x 42) int str))
-)
-
-(#func_def main ((x int) (y int)) (maybe_int 42) 
+(main (#fn ((x int) (y int)) (maybe_int 42) 
     (#return (+ x (fib y)))
-)
+))
+
+(maybe_int (#fn ((x int)) type
+    (#return (#if (== x 42) int bool))
+))
 `.trim()
 
 main()
