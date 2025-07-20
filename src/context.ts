@@ -1,4 +1,4 @@
-import { AstLeaf, AstNode, err, is_ast_leaf } from "../lib/parse.ts";
+import { AstLeaf, AstNode, err, is_ast_leaf } from "./parse.ts";
 import { Type, Atom, atom, as, assert_type_eq } from "./types.ts";
 
 export class Context {
@@ -165,7 +165,7 @@ export function check(modules: (AstNode[] | ((ctx: Context) => void))[]) {
                 // set up return keyword for this context
                 func_ctx.set_type("#return", (ctx, args, area) => {
                     if (args.length !== 1) err("== 1 return value", area)
-                    assert_type_eq(ctx, def.return_type, ctx.check(args[0]), area, "incorrect return type")
+                    assert_type_eq(ctx, ctx.check(args[0]), def.return_type, area)
                     return "never"
                 })
 
