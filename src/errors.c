@@ -1,6 +1,6 @@
 #include "zed.h"
 
-void add_error(Parser* p, Token loc, char* msg) {
+int add_error(Parser* p, Token loc, char* msg) {
     if (p->err_len == p->err_cap) {
         p->cap *= 2;
         p->errors = realloc(p->errors, p->err_cap * sizeof(Error));
@@ -10,6 +10,8 @@ void add_error(Parser* p, Token loc, char* msg) {
     p->errors[p->err_len].msg = msg;
 
     p->err_len++;
+
+    return ERROR;
 }
 
 Token get_line(Parser *p, Token t) {

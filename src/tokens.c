@@ -27,19 +27,28 @@ bool is_ident(char c) {
     );
 }
 
-TokenKind get_op_kind(Parser* p, Token t) {
-    if (strncmp(t.txt, "==", t.len)) return IS_EQ;
-    if (strncmp(t.txt, "<=", t.len)) return IS_LE;
-    if (strncmp(t.txt, ">=", t.len)) return IS_GE;
-    if (strncmp(t.txt, "<",  t.len)) return IS_LT;
-    if (strncmp(t.txt, ">",  t.len)) return IS_GT;
+Tag get_op_kind(Parser* p, Token t) {
+    if (strncmp(t.txt, "=", t.len) == 0) return IS_EQ;
+
+    if (strncmp(t.txt, "+", t.len) == 0) return OP_ADD;
+    if (strncmp(t.txt, "-", t.len) == 0) return OP_SUB;
+    if (strncmp(t.txt, "*", t.len) == 0) return OP_MUL;
+    if (strncmp(t.txt, "/", t.len) == 0) return OP_DIV;
+    if (strncmp(t.txt, "%", t.len) == 0) return OP_MOD;
+    if (strncmp(t.txt, "^", t.len) == 0) return OP_POW;
+
+    if (strncmp(t.txt, "==", t.len) == 0) return IS_EQ;
+    if (strncmp(t.txt, "<=", t.len) == 0) return IS_LE;
+    if (strncmp(t.txt, ">=", t.len) == 0) return IS_GE;
+    if (strncmp(t.txt, "<",  t.len) == 0) return IS_LT;
+    if (strncmp(t.txt, ">",  t.len) == 0) return IS_GT;
 
     add_error(p, t, "Unknown operator kind!");
 
     return ERROR;
 }
 
-TokenKind get_keyword_kind(Token t) {
+Tag get_keyword_kind(Token t) {
     if (strncmp(t.txt, "function", t.len) == 0) return KW_FUNCTION;
     if (strncmp(t.txt, "while",    t.len) == 0) return KW_WHILE;
     if (strncmp(t.txt, "if",       t.len) == 0) return KW_IF;
@@ -49,7 +58,7 @@ TokenKind get_keyword_kind(Token t) {
     return IDENT;
 }
 
-char* get_tag_name(TokenKind tag) {
+char* get_tag_name(Tag tag) {
     switch (tag) {
         case IDENT: return "an identifier";
         case IS_EQ: return "'=='";
@@ -77,7 +86,11 @@ char* get_tag_name(TokenKind tag) {
     }
 }
 
-Token eat(Parser *p) {
+bool is_not_op(char c) {
+    return is_punctuation(c) || is_ident(c) || isspace(c) || c == '\0';
+}
+
+Token peek(Parser *p) {
     skip_whitespace(p->src, &p->ptr);
     
     Token t; 
@@ -94,7 +107,7 @@ Token eat(Parser *p) {
     }
 
     else if (p->src[p->ptr] != '\0') {
-        while (p->src[p->ptr + t.len] != '\0') t.len++;
+        while (!is_not_op(p->src[p->ptr + t.len])) t.len++;
         t.tag = get_op_kind(p, t);
     }
 
@@ -102,12 +115,16 @@ Token eat(Parser *p) {
         t.tag = EOF;
     }
 
-    p->ptr += t.len;
-
     return t;
 }
 
-Token ceat(Parser *p, TokenKind tag) {
+Token eat(Parser *p) {
+    Token t = peek(p);
+    p->ptr += t.len;
+    return t;
+}
+
+Token ceat(Parser *p, Tag tag) {
     Token t = eat(p);
     if (t.tag != tag) {
         char *msg;
@@ -119,4 +136,13 @@ Token ceat(Parser *p, TokenKind tag) {
         t.tag = ERROR;
     }
     return t;
+}
+
+bool meat(Parser *p, Tag tag) {
+    Token t = peek(p);
+    if (t.tag == tag) {
+        p->ptr += t.len;
+        return true;
+    }
+    return false;
 }
