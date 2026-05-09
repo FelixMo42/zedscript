@@ -44,7 +44,10 @@ typedef enum e_Tag {
 
     COMMA,
 
+    LIST,
+
     //
+    FN_SIGN,
     FN_CALL,
 
     // Exceptions,
@@ -74,6 +77,7 @@ typedef struct s_Parser {
     // Node data
     size_t  len;
     size_t  cap;
+
     Tag*    tags;
     char**  token;
     size_t* l;
@@ -98,3 +102,4 @@ Token eat(Parser* p);
 Token ceat(Parser* p, Tag tag);
 bool  meat(Parser* p, Tag tag);
 void  skip(Parser* p, Token t);
+char* get_tag_name(Tag tag);

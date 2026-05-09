@@ -119,6 +119,14 @@ size_t parse_function(Parser *p) {
     if (t.tag != KW_FUNCTION) return 0;
     eat(p);
 
+    // Make the function node
+    size_t func_node = add_node(p,
+        KW_FUNCTION,
+        t.txt,
+        0,
+        0
+    );
+
     // the name
     Token name = ceat(p, IDENT);
     if (name.tag == ERROR) return ERROR;
@@ -126,17 +134,18 @@ size_t parse_function(Parser *p) {
     // args
     size_t args = parse_args(p);
     if (args == ERROR) return ERROR;
+    p->l[func_node] = add_node(p, FN_SIGN,
+        name.txt,
+        args,
+        0
+    );
 
     // body
     size_t body = parse_block(p);
     if (body == ERROR) return ERROR;
+    p->r[func_node] = args;
 
-    return add_node(p,
-        KW_FUNCTION,
-        name.txt,
-        args,
-        body
-    );
+    return func_node;
 }
 
 size_t parse_expr(Parser *p) {
