@@ -27,6 +27,19 @@ bool is_ident(char c) {
     );
 }
 
+Tag get_punctuation_kind(char c) {
+    switch (c) {
+        case '{': return BRACE_O;
+        case '}': return BRACE_C;
+        case '(': return PARAN_O;
+        case ')': return PARAN_C;
+        case '[': return SQUARE_O;
+        case ']': return SQUARE_C;
+        case ',': return COMMA;
+        default: return ERROR;
+    }
+}
+
 Tag get_op_kind(Parser* p, Token t) {
     if (strncmp(t.txt, "=", t.len) == 0) return IS_EQ;
 
@@ -81,7 +94,6 @@ char* get_tag_name(Tag tag) {
         case BRACE_C: return "'}'";
         case COMMA: return "','";
         case DOT: return "'.'";
-        case AT: return "'@'";
         default: return "UNKNOWN";
     }
 }
@@ -98,7 +110,7 @@ Token peek(Parser *p) {
     t.len = 1;
 
     if (is_punctuation(p->src[p->ptr])) {
-        t.tag = p->src[p->ptr];
+        t.tag = get_punctuation_kind(p->src[p->ptr]);
     }
 
     else if (is_ident(p->src[p->ptr])) {
@@ -145,4 +157,8 @@ bool meat(Parser *p, Tag tag) {
         return true;
     }
     return false;
+}
+
+void skip(Parser *p, Token t) {
+    p->ptr += t.len;
 }

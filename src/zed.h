@@ -6,43 +6,46 @@
 #include <limits.h>
 
 typedef enum e_Tag {
-    // Ident
-    IDENT,
+    // Atom node
+    IDENT = 1,
 
     // Operators
-    ASSIGN,
+    __OP_START__,
+        ASSIGN,
 
-    OP_ADD = '+',
-    OP_SUB = '-',
-    OP_MUL = '*',
-    OP_DIV = '/',
-    OP_MOD = '%',
-    OP_POW = '^',
+        IS_EQ,
+        IS_GT,
+        IS_LT,
+        IS_GE,
+        IS_LE,
 
-    IS_EQ,
-    IS_GT,
-    IS_LT,
-    IS_GE,
-    IS_LE,
+        OP_ADD,
+        OP_SUB,
+        OP_MUL,
+        OP_DIV,
+        OP_MOD,
+        OP_POW,
+
+        DOT,
+    __OP_END__,
 
     // Keywords
-    KW_FUNCTION = 'F',
-    KW_WHILE    = 'w',
-    KW_IF       = 'i',
-    KW_ELSE     = 'e',
-    KW_FOR      = 'f',
-    KW_RETURN   = 'r',
+    KW_FUNCTION,
+    KW_WHILE,
+    KW_IF,
+    KW_ELSE,
+    KW_FOR,
+    KW_RETURN,
 
     // Punctuation marks
-    BRACE_O  = '{',
-    BRACE_C  = '}',
-    PARAN_O  = '(',
-    PARAN_C  = ')',
-    SQUARE_O = '[',
-    SQUARE_C = ']',
-    COMMA    = ',',
-    DOT      = '.',
-    AT       = '@',
+    BRACE_O  , BRACE_C  ,
+    PARAN_O  , PARAN_C  ,
+    SQUARE_O , SQUARE_C ,
+
+    COMMA,
+
+    //
+    FN_CALL,
 
     // Exceptions,
     ERROR = -2147483647,
@@ -82,6 +85,9 @@ typedef struct s_Parser {
     Error* errors;
 } Parser;
 
+// parser.c
+Parser handle_file(char *path);
+
 // errors.c
 int add_error(Parser* p, Token loc, char* msg);
 void print_error(Parser* p, Error e);
@@ -91,3 +97,4 @@ Token peek(Parser* p);
 Token eat(Parser* p);
 Token ceat(Parser* p, Tag tag);
 bool  meat(Parser* p, Tag tag);
+void  skip(Parser* p, Token t);
